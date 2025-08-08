@@ -265,27 +265,31 @@ class FPSCounter:
 class DepthLogger:
     """Real-time depth logging for detected objects"""
     
-    def __init__(self, log_interval=60, enabled=False):
+    def __init__(self, log_interval=60, enabled=False, measure_distances=False):
         self.log_interval = log_interval  # seconds
         self.enabled = enabled
+        self.measure_distances = measure_distances
         self.last_log_time = time.time()
         self.depth_data = []
         self.log_file = None
         self.csv_writer = None
+        self.distance_log_file = None
+        self.distance_csv_writer = None
         
         if self.enabled:
-            self._setup_log_file()
+            self._setup_log_files()
     
-    def _setup_log_file(self):
-        """Setup CSV log file with headers"""
+    def _setup_log_files(self):
+        """Setup CSV log files with headers"""
         os.makedirs(DEPTH_LOG_FOLDER, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.log_file_path = os.path.join(DEPTH_LOG_FOLDER, f"depth_log_{timestamp}.csv")
         
+        # Main depth log file
+        self.log_file_path = os.path.join(DEPTH_LOG_FOLDER, f"depth_log_{timestamp}.csv")
         self.log_file = open(self.log_file_path, 'w', newline='')
         self.csv_writer = csv.writer(self.log_file)
         
-        # Write headers
+        # Write headers for depth log
         self.csv_writer.writerow([
             'timestamp', 'datetime', 'frame_count', 'object_class', 
             'confidence', 'depth_meters', 'bbox_x1', 'bbox_y1', 
@@ -293,6 +297,21 @@ class DepthLogger:
         ])
         self.log_file.flush()
         print(f"📊 Depth logging enabled: {self.log_file_path}")
+        
+        # Distance measurement log file (if enabled)
+        if self.measure_distances:
+            self.distance_log_file_path = os.path.join(DEPTH_LOG_FOLDER, f"distance_log_{timestamp}.csv")
+            self.distance_log_file = open(self.distance_log_file_path, 'w', newline='')
+            self.distance_csv_writer = csv.writer(self.distance_log_file)
+            
+            # Write headers for distance log
+            self.distance_csv_writer.writerow([
+                'timestamp', 'datetime', 'frame_count', 'obj1_class', 'obj2_class',
+                'distance_3d_meters', 'depth_difference', 'obj1_depth', 'obj2_depth',
+                'obj1_x', 'obj1_y', 'obj2_x', 'obj2_y'
+            ])
+            self.distance_log_file.flush()
+            print(f"📐 Distance logging enabled: {self.distance_log_file_path}")
     
     def should_log(self, current_time):
         """Check if it's time to log data"""
@@ -300,8 +319,8 @@ class DepthLogger:
             return False
         return (current_time - self.last_log_time) >= self.log_interval
     
-    def log_detections(self, detections, depth_map, frame_count):
-        """Log detection data with depth measurements"""
+    def log_detections(self, detections, depth_map, frame_count, camera_params=None):
+        """Log detection data with depth measurements and distances"""
         if not self.enabled or not self.csv_writer:
             return
         
@@ -365,15 +384,44 @@ class DepthLogger:
                 ])
                 
                 print(f"📊 Logged: {class_name} at {depth_value:.2f}m ({datetime_str})")
+            
+            # Log distance measurements if enabled and we have multiple objects
+            if self.measure_distances and self.distance_csv_writer and len(detections) >= 2 and camera_params:
+                self._log_distances(detections, depth_map, frame_count, timestamp, datetime_str, camera_params)
         
         # Flush to ensure data is written
         self.log_file.flush()
+        if self.distance_log_file:
+            self.distance_log_file.flush()
+    
+    def _log_distances(self, detections, depth_map, frame_count, timestamp, datetime_str, camera_params):
+        """Log distances between all pairs of detected objects"""
+        for i in range(len(detections)):
+            for j in range(i + 1, len(detections)):
+                dist_info = calculate_object_distance(detections[i], detections[j], depth_map, camera_params)
+                if dist_info:
+                    obj1 = detections[i]
+                    obj2 = detections[j]
+                    
+                    self.distance_csv_writer.writerow([
+                        timestamp, datetime_str, frame_count,
+                        obj1['class'], obj2['class'],
+                        dist_info['distance_3d'], dist_info['depth_difference'],
+                        dist_info['object1_depth'], dist_info['object2_depth'],
+                        obj1['center'][0], obj1['center'][1],
+                        obj2['center'][0], obj2['center'][1]
+                    ])
+                    
+                    print(f"📐 Distance logged: {obj1['class']} ↔ {obj2['class']} = {dist_info['distance_3d']:.2f}m")
     
     def close(self):
-        """Close log file"""
+        """Close log files"""
         if self.log_file:
             self.log_file.close()
             print(f"📊 Depth log saved: {self.log_file_path}")
+        if self.distance_log_file:
+            self.distance_log_file.close()
+            print(f"📐 Distance log saved: {self.distance_log_file_path}")
 
 
 class DepthFrameProcessor(threading.Thread):
@@ -571,6 +619,152 @@ def draw_yolo_detections(image, depth_map, detections):
     return image
 
 
+def calculate_object_distance(detection1, detection2, depth_map, camera_params):
+    """Calculate 3D distance between two detected objects using depth and camera parameters"""
+    # Get centers and depths for both objects
+    x1, y1 = detection1['center']
+    x2, y2 = detection2['center']
+    
+    # Ensure coordinates are within bounds
+    x1 = max(0, min(x1, depth_map.shape[1] - 1))
+    y1 = max(0, min(y1, depth_map.shape[0] - 1))
+    x2 = max(0, min(x2, depth_map.shape[1] - 1))
+    y2 = max(0, min(y2, depth_map.shape[0] - 1))
+    
+    # Sample multiple points around each center for robust depth measurement
+    def get_robust_depth(cx, cy):
+        sample_points = [
+            (cx, cy),  # Center
+            (cx, min(cy + 20, depth_map.shape[0] - 1)),  # Lower
+            (max(cx - 10, 0), cy),  # Left
+            (min(cx + 10, depth_map.shape[1] - 1), cy),  # Right
+        ]
+        
+        depths = []
+        for px, py in sample_points:
+            px, py = int(px), int(py)
+            if 0 <= py < depth_map.shape[0] and 0 <= px < depth_map.shape[1]:
+                depth_at_point = depth_map[py, px]
+                if depth_at_point > 0:  # Only use valid depths
+                    depths.append(depth_at_point)
+        
+        return np.median(depths) if depths else 0.0
+    
+    # Get depths for both objects
+    depth1 = get_robust_depth(x1, y1)
+    depth2 = get_robust_depth(x2, y2)
+    
+    if depth1 <= 0 or depth2 <= 0:
+        return None  # Invalid depth data
+    
+    # Get camera intrinsic parameters
+    fx = camera_params.get('fx', 640.0)
+    fy = camera_params.get('fy', 640.0)
+    cx = camera_params.get('cx', 320.0)
+    cy = camera_params.get('cy', 240.0)
+    
+    # Convert pixel coordinates to 3D world coordinates
+    # X = (u - cx) * Z / fx
+    # Y = (v - cy) * Z / fy
+    # Z = depth
+    
+    # Object 1 in 3D space
+    X1 = (x1 - cx) * depth1 / fx
+    Y1 = (y1 - cy) * depth1 / fy
+    Z1 = depth1
+    
+    # Object 2 in 3D space
+    X2 = (x2 - cx) * depth2 / fx
+    Y2 = (y2 - cy) * depth2 / fy
+    Z2 = depth2
+    
+    # Calculate 3D Euclidean distance
+    distance_3d = np.sqrt((X2 - X1)**2 + (Y2 - Y1)**2 + (Z2 - Z1)**2)
+    
+    return {
+        'distance_3d': float(distance_3d),
+        'object1_depth': float(depth1),
+        'object2_depth': float(depth2),
+        'object1_3d': (float(X1), float(Y1), float(Z1)),
+        'object2_3d': (float(X2), float(Y2), float(Z2)),
+        'depth_difference': float(abs(depth2 - depth1))
+    }
+
+
+def draw_distance_measurements(image, depth_map, detections, camera_params):
+    """Draw distance measurements between detected objects"""
+    if len(detections) < 2:
+        return image
+    
+    # Calculate distances between all pairs of objects
+    distance_data = []
+    for i in range(len(detections)):
+        for j in range(i + 1, len(detections)):
+            dist_info = calculate_object_distance(detections[i], detections[j], depth_map, camera_params)
+            if dist_info:
+                distance_data.append({
+                    'obj1_idx': i,
+                    'obj2_idx': j,
+                    'distance_info': dist_info
+                })
+    
+    # Draw distance lines and measurements
+    for data in distance_data:
+        obj1 = detections[data['obj1_idx']]
+        obj2 = detections[data['obj2_idx']]
+        dist_info = data['distance_info']
+        
+        # Get center points
+        center1 = obj1['center']
+        center2 = obj2['center']
+        
+        # Draw line between objects
+        cv2.line(image, center1, center2, (255, 0, 255), 2)  # Magenta line
+        
+        # Calculate midpoint for text placement
+        mid_x = (center1[0] + center2[0]) // 2
+        mid_y = (center1[1] + center2[1]) // 2
+        
+        # Create distance label
+        distance_3d = dist_info['distance_3d']
+        depth_diff = dist_info['depth_difference']
+        
+        # Main distance text
+        dist_text = f"{distance_3d:.2f}m"
+        
+        # Additional info text
+        info_text = f"Δz:{depth_diff:.2f}m"
+        
+        # Draw background for main text
+        font_scale = 0.6
+        thickness = 2
+        text_size = cv2.getTextSize(dist_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)[0]
+        
+        # Background rectangle
+        padding = 5
+        cv2.rectangle(image, 
+                     (mid_x - text_size[0]//2 - padding, mid_y - text_size[1] - padding*2),
+                     (mid_x + text_size[0]//2 + padding, mid_y + padding),
+                     (255, 0, 255), -1)
+        
+        # Main distance text (white)
+        cv2.putText(image, dist_text, 
+                   (mid_x - text_size[0]//2, mid_y - padding),
+                   cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), thickness)
+        
+        # Additional info text (smaller, below main text)
+        info_size = cv2.getTextSize(info_text, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)[0]
+        cv2.putText(image, info_text,
+                   (mid_x - info_size[0]//2, mid_y + 20),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 255), 1)
+        
+        # Draw small circles at connection points
+        cv2.circle(image, center1, 3, (255, 0, 255), -1)
+        cv2.circle(image, center2, 3, (255, 0, 255), -1)
+    
+    return image
+
+
 def mouse_callback(event, x, y, flags, param):
     """Mouse callback for depth measurement"""
     if event == cv2.EVENT_MOUSEMOVE:
@@ -638,6 +832,9 @@ def main():
     # Depth logging options
     parser.add_argument('--log-depth', action='store_true', help='Enable real-time depth logging to CSV file')
     parser.add_argument('--log-interval', type=int, default=60, help='Depth logging interval in seconds (default: 60)')
+    
+    # Distance measurement options
+    parser.add_argument('--measure-distance', action='store_true', help='Enable distance measurement between detected objects')
     
     args = parser.parse_args()
     
@@ -723,7 +920,7 @@ def main():
     result_queue = Queue(maxsize=1)
     
     # Initialize depth logger
-    depth_logger = DepthLogger(log_interval=args.log_interval, enabled=args.log_depth)
+    depth_logger = DepthLogger(log_interval=args.log_interval, enabled=args.log_depth, measure_distances=args.measure_distance)
     
     processor = DepthFrameProcessor(frame_queue, result_queue, depth_model, yolo_detector, camera_params)
     # Auto calibration default OFF unless --auto-calib supplied
@@ -759,6 +956,8 @@ def main():
         print("   📸 Using YOLOv8n for better human detection")
     if depth_logger.enabled:
         print(f"   📊 Depth logging enabled: Every {args.log_interval} seconds")
+    if args.measure_distance:
+        print("   📐 Distance measurement enabled: Shows 3D distance between objects")
     print("   🎯 Stand 1-2m away and calibrate for best accuracy")
     
     # Helper for auto calibration (geometric) - placed before processing loop so it's in scope
@@ -891,9 +1090,13 @@ def main():
                     # Perform geometric auto calibration BEFORE drawing detections (so display uses updated scale next frame)
                     auto_calibrate_scale(detections, depth_map_resized)
                     display_frame = draw_yolo_detections(display_frame, depth_map_resized, detections)
+                    
+                    # Draw distance measurements between objects if enabled
+                    if args.measure_distance and len(detections) >= 2:
+                        display_frame = draw_distance_measurements(display_frame, depth_map_resized, detections, camera_params)
                 
                 # Log depth data if enabled
-                depth_logger.log_detections(detections, depth_map_resized, frame_count)
+                depth_logger.log_detections(detections, depth_map_resized, frame_count, camera_params)
                 
                 # Add depth info overlay (use resized depth map)
                 display_frame = add_depth_info_overlay(display_frame, depth_map_resized, camera_params, mouse_data['cursor_pos'])

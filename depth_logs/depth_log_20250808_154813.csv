@@ -1,0 +1,2 @@
+timestamp,datetime,frame_count,object_class,confidence,depth_meters,bbox_x1,bbox_y1,bbox_x2,bbox_y2,center_x,center_y
+1754686153.278757,2025-08-08 15:49:13,1799,none,0.0,0.0,0,0,0,0,0,0
