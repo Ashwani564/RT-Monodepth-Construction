@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+
+# Virtual environments
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs
+*.log
+
+# Model checkpoints (if any)
+*.ckpt
+*.model
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# Output videos and images
+output/
+outputs/
+*.mp4
+*.avi
+*.mov
