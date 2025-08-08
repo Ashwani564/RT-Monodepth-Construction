@@ -19,6 +19,8 @@ from queue import Queue, Empty
 import json
 import signal
 import sys
+import csv
+from datetime import datetime
 
 # RT-MonoDepth imports
 from networks.RTMonoDepth.RTMonoDepth import DepthDecoder, DepthEncoder
@@ -49,6 +51,7 @@ if IS_APPLE_SILICON:
 
 # Configuration
 OUTPUT_FOLDER = "output_depth_video"
+DEPTH_LOG_FOLDER = "depth_logs"
 
 # YOLO Configuration - Custom YOLOv11n model
 YOLO_MODEL_PATH = 'custom_yolo11n.pt'  # Custom YOLOv11n model in current directory
@@ -257,6 +260,120 @@ class FPSCounter:
         
         avg_frame_time = sum(self.frame_times) / len(self.frame_times)
         return 1.0 / avg_frame_time if avg_frame_time > 0 else 0.0
+
+
+class DepthLogger:
+    """Real-time depth logging for detected objects"""
+    
+    def __init__(self, log_interval=60, enabled=False):
+        self.log_interval = log_interval  # seconds
+        self.enabled = enabled
+        self.last_log_time = time.time()
+        self.depth_data = []
+        self.log_file = None
+        self.csv_writer = None
+        
+        if self.enabled:
+            self._setup_log_file()
+    
+    def _setup_log_file(self):
+        """Setup CSV log file with headers"""
+        os.makedirs(DEPTH_LOG_FOLDER, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.log_file_path = os.path.join(DEPTH_LOG_FOLDER, f"depth_log_{timestamp}.csv")
+        
+        self.log_file = open(self.log_file_path, 'w', newline='')
+        self.csv_writer = csv.writer(self.log_file)
+        
+        # Write headers
+        self.csv_writer.writerow([
+            'timestamp', 'datetime', 'frame_count', 'object_class', 
+            'confidence', 'depth_meters', 'bbox_x1', 'bbox_y1', 
+            'bbox_x2', 'bbox_y2', 'center_x', 'center_y'
+        ])
+        self.log_file.flush()
+        print(f"📊 Depth logging enabled: {self.log_file_path}")
+    
+    def should_log(self, current_time):
+        """Check if it's time to log data"""
+        if not self.enabled:
+            return False
+        return (current_time - self.last_log_time) >= self.log_interval
+    
+    def log_detections(self, detections, depth_map, frame_count):
+        """Log detection data with depth measurements"""
+        if not self.enabled or not self.csv_writer:
+            return
+        
+        current_time = time.time()
+        if not self.should_log(current_time):
+            return
+        
+        # Update last log time
+        self.last_log_time = current_time
+        
+        # Create timestamp
+        timestamp = current_time
+        datetime_str = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+        
+        if not detections:
+            # Log no detections
+            self.csv_writer.writerow([
+                timestamp, datetime_str, frame_count, 'none', 
+                0.0, 0.0, 0, 0, 0, 0, 0, 0
+            ])
+            print(f"📊 Logged: No objects detected at {datetime_str}")
+        else:
+            # Log each detection
+            for detection in detections:
+                bbox = detection['bbox']
+                center = detection['center']
+                class_name = detection['class']
+                confidence = detection['confidence']
+                
+                x1, y1, x2, y2 = bbox
+                center_x, center_y = center
+                
+                # Calculate depth at detection center
+                # Ensure coordinates are within bounds
+                center_x = max(0, min(center_x, depth_map.shape[1] - 1))
+                center_y = max(0, min(center_y, depth_map.shape[0] - 1))
+                
+                # Sample multiple points for robust depth measurement
+                sample_points = [
+                    (center_x, center_y),  # Center
+                    (center_x, min(center_y + 20, depth_map.shape[0] - 1)),  # Lower
+                    (max(center_x - 10, 0), center_y),  # Left
+                    (min(center_x + 10, depth_map.shape[1] - 1), center_y),  # Right
+                ]
+                
+                depths = []
+                for px, py in sample_points:
+                    px, py = int(px), int(py)
+                    if 0 <= py < depth_map.shape[0] and 0 <= px < depth_map.shape[1]:
+                        depth_at_point = depth_map[py, px]
+                        depths.append(depth_at_point)
+                
+                # Use median depth for robustness
+                depth_value = float(np.median(depths)) if depths else 0.0
+                
+                # Log to CSV
+                self.csv_writer.writerow([
+                    timestamp, datetime_str, frame_count, class_name,
+                    float(confidence), depth_value, int(x1), int(y1),
+                    int(x2), int(y2), int(center_x), int(center_y)
+                ])
+                
+                print(f"📊 Logged: {class_name} at {depth_value:.2f}m ({datetime_str})")
+        
+        # Flush to ensure data is written
+        self.log_file.flush()
+    
+    def close(self):
+        """Close log file"""
+        if self.log_file:
+            self.log_file.close()
+            print(f"📊 Depth log saved: {self.log_file_path}")
 
 
 class DepthFrameProcessor(threading.Thread):
@@ -485,6 +602,9 @@ def main():
                 writer.release()
             except:
                 pass
+        # Close depth logger
+        if 'depth_logger' in locals():
+            depth_logger.close()
         try:
             cv2.destroyAllWindows()
         except:
@@ -514,6 +634,10 @@ def main():
     parser.add_argument('--person-height', type=float, default=1.70, help='Assumed average person height in meters for auto calibration')
     parser.add_argument('--auto-calib-min-frames', type=int, default=15, help='Frames to wait before applying first auto scale update')
     parser.add_argument('--auto-calib-smoothing', type=float, default=0.9, help='EMA smoothing factor (0-1, higher = slower changes)')
+    
+    # Depth logging options
+    parser.add_argument('--log-depth', action='store_true', help='Enable real-time depth logging to CSV file')
+    parser.add_argument('--log-interval', type=int, default=60, help='Depth logging interval in seconds (default: 60)')
     
     args = parser.parse_args()
     
@@ -598,6 +722,9 @@ def main():
     frame_queue = Queue(maxsize=1)  # Reduced queue size for less lag
     result_queue = Queue(maxsize=1)
     
+    # Initialize depth logger
+    depth_logger = DepthLogger(log_interval=args.log_interval, enabled=args.log_depth)
+    
     processor = DepthFrameProcessor(frame_queue, result_queue, depth_model, yolo_detector, camera_params)
     # Auto calibration default OFF unless --auto-calib supplied
     processor.auto_enabled = bool(getattr(args, 'auto_calib', False))
@@ -630,6 +757,8 @@ def main():
     print("   - Press 's' to save current frame")
     if args.use_yolov8:
         print("   📸 Using YOLOv8n for better human detection")
+    if depth_logger.enabled:
+        print(f"   📊 Depth logging enabled: Every {args.log_interval} seconds")
     print("   🎯 Stand 1-2m away and calibrate for best accuracy")
     
     # Helper for auto calibration (geometric) - placed before processing loop so it's in scope
@@ -763,6 +892,9 @@ def main():
                     auto_calibrate_scale(detections, depth_map_resized)
                     display_frame = draw_yolo_detections(display_frame, depth_map_resized, detections)
                 
+                # Log depth data if enabled
+                depth_logger.log_detections(detections, depth_map_resized, frame_count)
+                
                 # Add depth info overlay (use resized depth map)
                 display_frame = add_depth_info_overlay(display_frame, depth_map_resized, camera_params, mouse_data['cursor_pos'])
                 
@@ -824,6 +956,9 @@ def main():
             cv2.destroyAllWindows()
         except:
             pass
+        
+        # Close depth logger
+        depth_logger.close()
         
         # Print performance summary
         if processing_times:
