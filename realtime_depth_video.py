@@ -55,8 +55,8 @@ DEPTH_LOG_FOLDER = "depth_logs"
 
 # YOLO Configuration - Custom YOLOv11n model
 YOLO_MODEL_PATH = 'custom_yolo11n.pt'  # Custom YOLOv11n model in current directory
-CLASSES_TO_DETECT = {"person"}  # Focus on person detection only
-CONFIDENCE_THRESHOLD = 0.25  # Lower threshold for better detection with custom model
+CLASSES_TO_DETECT = {"Person", "Machinery", "Vehicle"}  # Main detection classes (normalized)
+CONFIDENCE_THRESHOLD = 0.35  # Higher threshold to reduce false positives
 
 DEFAULT_CAMERA_PARAMS = {
     "macbook_m1_pro": {
@@ -167,12 +167,14 @@ class YOLODetector:
                 # Check if it's a custom trained model
                 if "custom" in model_path.lower() or "best.pt" in model_path:
                     print("🔧 Custom-trained YOLO model detected")
-                    print("   Using custom weights for optimized person detection")
-                    # Print model classes for debugging
-                    if hasattr(self.model, 'names'):
-                        print(f"   Available classes: {list(self.model.names.values())}")
+                    print("   Using custom weights for optimized detection")
                 else:
                     print(f"   Model: {model_name}")
+                
+                # Always print model classes for debugging
+                if hasattr(self.model, 'names'):
+                    print(f"   Available classes: {list(self.model.names.values())}")
+                    print("   ↳ Will filter for: Person, machinery, vehicles")
                     
             else:
                 # Fallback to YOLOv11n
@@ -205,26 +207,77 @@ class YOLODetector:
                     for box, cls_idx, conf in zip(boxes, classes, confidences):
                         class_name = self.model.names[int(cls_idx)]
                         
-                        # Filter out unwanted classes and detect person only
-                        unwanted_classes = {'Mask', 'NO-Hardhat', 'NO-Mask', 'NO-Safety Vest', 'Hardhat', 'Safety Vest', 'Safety Cone', 'machinery', 'vehicle'}
-                        if class_name in unwanted_classes:
-                            continue
-                            
-                        # Detect person class (case-insensitive)
-                        if class_name.lower() != "person":
-                            continue
-                            
-                        # Debug: Print person detections only
-                        print(f"✅ Person detected: {confidence:.2f}")
+                        # Debug: Print ALL detections before filtering
+                        print(f"🔍 Raw detection: {class_name} (confidence={conf:.2f})")
                         
+                        # Filter out safety equipment classes we don't want to show
+                        unwanted_classes = {'Mask', 'NO-Hardhat', 'NO-Mask', 'NO-Safety Vest', 'Hardhat', 'Safety Vest', 'Safety Cone'}
+                        if class_name in unwanted_classes:
+                            print(f"❌ Filtered out safety equipment: {class_name}")
+                            continue
+                        
+                        # Keep only Person, machinery, and vehicles (case-insensitive matching)
+                        class_lower = class_name.lower()
+                        
+                        # Define wanted classes (case-insensitive)
+                        is_person = class_lower in ['person', 'people', 'human']
+                        is_machinery = class_lower in ['machinery', 'excavator', 'bulldozer', 'crane', 'construction equipment']
+                        is_vehicle = class_lower in ['vehicle', 'car', 'truck', 'van', 'bus', 'motorcycle', 'bicycle']
+                        
+                        if not (is_person or is_machinery or is_vehicle):
+                            print(f"❌ Filtered out unwanted class: {class_name}")
+                            continue
+                        
+                        # Lower confidence threshold for person detection to reduce flickering
+                        min_confidence = 0.25 if is_person else 0.35
+                        if conf < min_confidence:
+                            print(f"❌ Low confidence: {class_name} ({conf:.2f} < {min_confidence})")
+                            continue
+                        
+                        # Extract bounding box coordinates
                         x1, y1, x2, y2 = map(int, box)
+                        bbox_width = x2 - x1
+                        bbox_height = y2 - y1
+                        bbox_area = bbox_width * bbox_height
+                        
                         center_x = (x1 + x2) // 2
                         center_y = (y1 + y2) // 2
+                        
+                        # Only reclassify vehicles as machinery if they're very large (less aggressive)
+                        if is_vehicle:
+                            aspect_ratio = bbox_width / max(bbox_height, 1)
+                            
+                            # Calculate box ratio relative to image size
+                            image_area = image.shape[0] * image.shape[1]
+                            box_ratio = bbox_area / max(image_area, 1)
+                            
+                            # Much more conservative reclassification - only for very large construction equipment
+                            is_very_large = box_ratio > 0.15  # >15% of frame
+                            is_very_wide = aspect_ratio > 2.0  # Much wider than tall
+                            
+                            if is_very_large and is_very_wide:
+                                class_name = "machinery"
+                                print(f"🔄 Reclassified large vehicle→machinery: area={bbox_area}, w={bbox_width}, h={bbox_height}, ar={aspect_ratio:.2f}")
+                            else:
+                                class_name = "vehicle"  # Keep as vehicle
+                        
+                        # Normalize class name for display
+                        if is_person:
+                            display_class = "Person"
+                        elif is_machinery:
+                            display_class = "Machinery" 
+                        elif is_vehicle:
+                            display_class = "Vehicle"
+                        else:
+                            display_class = class_name
+                        
+                        # Debug: Print all detections
+                        print(f"✅ {display_class} detected: confidence={conf:.2f}, bbox=({x1},{y1},{x2},{y2})")
                         
                         detections.append({
                             'bbox': (x1, y1, x2, y2),
                             'center': (center_x, center_y),
-                            'class': class_name,
+                            'class': display_class,
                             'confidence': float(conf)
                         })
             
@@ -313,19 +366,21 @@ class DepthLogger:
             self.distance_log_file.flush()
             print(f"📐 Distance logging enabled: {self.distance_log_file_path}")
     
-    def should_log(self, current_time):
+    def should_log(self, current_time, force_log=False):
         """Check if it's time to log data"""
         if not self.enabled:
             return False
-        return (current_time - self.last_log_time) >= self.log_interval
+        return force_log or (current_time - self.last_log_time) >= self.log_interval
     
-    def log_detections(self, detections, depth_map, frame_count, camera_params=None):
+    def log_detections(self, detections, depth_map, frame_count, camera_params=None, force_log=False):
         """Log detection data with depth measurements and distances"""
         if not self.enabled or not self.csv_writer:
             return
         
         current_time = time.time()
-        if not self.should_log(current_time):
+        # Force log if there are detections, or use normal interval
+        should_log_now = self.should_log(current_time, force_log or bool(detections))
+        if not should_log_now:
             return
         
         # Update last log time
@@ -540,7 +595,7 @@ def add_depth_info_overlay(image, depth_map, camera_params, cursor_pos=None):
 
 
 def draw_yolo_detections(image, depth_map, detections):
-    """Draw YOLO detection bounding boxes and depth measurements for humans"""
+    """Draw YOLO detection bounding boxes and depth measurements for all detected objects"""
     for detection in detections:
         bbox = detection['bbox']
         center = detection['center']
@@ -560,7 +615,7 @@ def draw_yolo_detections(image, depth_map, detections):
         
         # Get depth at multiple points for better accuracy
         depths = []
-        # Sample from center area (more stable for humans) - simplified approach
+        # Sample from center area (more stable) - simplified approach
         sample_points = [
             (center_x, center_y),  # Center
             (center_x, min(center_y + 20, depth_map.shape[0] - 1)),  # Lower
@@ -578,11 +633,35 @@ def draw_yolo_detections(image, depth_map, detections):
         # Use median depth for robustness
         depth_value = np.median(depths) if depths else 0.0
         
-        # Draw bounding box with thicker lines for humans
-        cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 3)
+        # Set colors and thickness based on object type - exact class names from custom model
+        if class_name == "Person":
+            color = (0, 255, 0)  # Green for persons
+            thickness = 3
+            label_prefix = "PERSON"
+        elif class_name == "vehicle":
+            color = (255, 0, 0)  # Blue for vehicles
+            thickness = 4
+            # Check if it's likely construction equipment based on size/location
+            bbox_area = (x2 - x1) * (y2 - y1)
+            if bbox_area > 500:  # Larger objects likely construction equipment
+                label_prefix = "HEAVY VEHICLE"
+            else:
+                label_prefix = "VEHICLE"
+        elif class_name == "machinery":
+            color = (0, 165, 255)  # Orange for machinery
+            thickness = 4
+            label_prefix = "MACHINERY"
+        else:
+            # Default for any other objects that might pass through
+            color = (128, 128, 128)  # Gray for other objects
+            thickness = 2
+            label_prefix = class_name.upper()
+        
+        # Draw bounding box with object-specific color
+        cv2.rectangle(image, (x1, y1), (x2, y2), color, thickness)
         
         # Draw center point
-        cv2.circle(image, center, 5, (0, 255, 0), -1)
+        cv2.circle(image, center, 5, color, -1)
         
         # Draw sample points
         for px, py in sample_points:
@@ -590,25 +669,30 @@ def draw_yolo_detections(image, depth_map, detections):
                 cv2.circle(image, (px, py), 2, (255, 255, 0), -1)
         
         # Draw label with depth - larger text for visibility
-        label = f"PERSON: {confidence:.2f} | {depth_value:.1f}m"
+        label = f"{label_prefix}: {confidence:.2f} | {depth_value:.1f}m"
         
         # Use larger font
         font_scale = 0.8
-        thickness = 2
-        label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)[0]
+        text_thickness = 2
+        label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, text_thickness)[0]
         
-        # Background for text - make it more visible
+        # Background for text - make it more visible with object-specific color
         padding = 10
         cv2.rectangle(image, (x1, y1 - label_size[1] - padding*2), 
-                     (x1 + label_size[0] + padding, y1), (0, 255, 0), -1)
+                     (x1 + label_size[0] + padding, y1), color, -1)
         
-        # Text
+        # Text - white for good contrast
         cv2.putText(image, label, (x1 + padding//2, y1 - padding), 
-                   cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), thickness)
+                   cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), text_thickness)
         
-        # Add distance warning if very close
-        if depth_value > 0 and depth_value < 2.0:  # Adjusted threshold for new scaling
-            warning = "VERY CLOSE!"
+        # Add distance warning for close objects
+        if depth_value > 0 and depth_value < 3.0:  # Warning for objects closer than 3m
+            warning = "CLOSE!"
+            if class_name.lower() == "machinery":
+                warning = "MACHINERY CLOSE!"
+            elif class_name.lower() == "vehicle":
+                warning = "VEHICLE CLOSE!"
+            
             warning_size = cv2.getTextSize(warning, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
             cv2.rectangle(image, (x1, y2 + 5), 
                          (x1 + warning_size[0] + 10, y2 + warning_size[1] + 15), 
@@ -813,7 +897,8 @@ def main():
     parser.add_argument("-w", "--weights", type=str, 
                        default="./weights/RTMonoDepth/s/m_640_192/",
                        help="Path to RT-MonoDepth weights")
-    parser.add_argument("-r", "--record", action='store_true', help="Record output video")
+    parser.add_argument("-r", "--record", action='store_true', help="Record output video with detections and depth overlay")
+    parser.add_argument("-o", "--output", type=str, help="Output video filename (default: auto-generated)")
     parser.add_argument("--width", type=int, default=640, help="Processing width")
     parser.add_argument("--camera", type=str, default="macbook_m1_pro", 
                        choices=["macbook_m1_pro", "jetson_nano"], help="Camera type")
@@ -835,6 +920,13 @@ def main():
     
     # Distance measurement options
     parser.add_argument('--measure-distance', action='store_true', help='Enable distance measurement between detected objects')
+    
+    # Scale adjustment options
+    parser.add_argument('--depth-scale', type=float, default=5.0, help='Initial depth scale factor (default: 5.0 for construction sites)')
+    parser.add_argument('--manual-calibration', action='store_true', help='Enable manual calibration mode with larger scale adjustments')
+    
+    # Video timing options
+    parser.add_argument('--fast-process', action='store_true', help='Process video as fast as possible, ignoring original timing (default: 1:1 real-time)')
     
     args = parser.parse_args()
     
@@ -888,15 +980,32 @@ def main():
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, camera_params['height'])
         cap.set(cv2.CAP_PROP_FPS, args.fps_limit)
     
-    # Setup recording if requested
+    # Setup recording if requested or if processing video file (auto-record)
     writer = None
-    if args.record:
+    auto_record = bool(args.input)  # Auto-record when processing video files
+    should_record = args.record or auto_record
+    
+    if should_record:
         os.makedirs(OUTPUT_FOLDER, exist_ok=True)
         fps = cap.get(cv2.CAP_PROP_FPS) if args.input else args.fps_limit
+        if fps <= 0 or fps > 60:  # Handle invalid FPS values
+            fps = 30
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
-        output_path = os.path.join(OUTPUT_FOLDER, f"depth_estimation_{timestamp}.mp4")
+        # Determine output filename
+        if args.output:
+            output_filename = args.output
+            if not output_filename.endswith('.mp4'):
+                output_filename += '.mp4'
+        else:
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            if args.input:
+                input_name = os.path.splitext(os.path.basename(args.input))[0]
+                output_filename = f"depth_estimation_{input_name}_{timestamp}.mp4"
+            else:
+                output_filename = f"depth_estimation_webcam_{timestamp}.mp4"
+        
+        output_path = os.path.join(OUTPUT_FOLDER, output_filename)
         
         # Get frame dimensions for video writer
         ret, test_frame = cap.read()
@@ -913,7 +1022,11 @@ def main():
         
         writer = cv2.VideoWriter(output_path, fourcc, fps, (args.width, frame_height))
         
-        print(f"📹 Recording to: {output_path}")
+        if auto_record:
+            print(f"📹 Auto-recording enabled for video input: {output_path}")
+        else:
+            print(f"📹 Recording to: {output_path}")
+        print(f"   Output resolution: {args.width}x{frame_height} @ {fps} FPS")
     
     # Setup threading with smaller queues for faster response
     frame_queue = Queue(maxsize=1)  # Reduced queue size for less lag
@@ -925,10 +1038,20 @@ def main():
     processor = DepthFrameProcessor(frame_queue, result_queue, depth_model, yolo_detector, camera_params)
     # Auto calibration default OFF unless --auto-calib supplied
     processor.auto_enabled = bool(getattr(args, 'auto_calib', False))
+    # Set initial user scale from command line argument
+    processor.user_scale = args.depth_scale
+    
     if processor.auto_enabled:
         print("🔧 Auto calibration ENABLED (user requested)")
     else:
         print("🔧 Auto calibration DISABLED (default)")
+    
+    # Manual calibration mode for easier adjustments
+    manual_calib_mode = args.manual_calibration
+    if manual_calib_mode:
+        print("🎯 Manual calibration mode ENABLED (larger scale adjustments)")
+    
+    print(f"🔧 Initial depth scale: {processor.user_scale:.3f}")
     processor.start()
     
     # Setup mouse callback for depth measurement
@@ -944,20 +1067,36 @@ def main():
     print("   📏 CALIBRATION INSTRUCTIONS:")
     print("   - Move mouse over image to measure depth")
     print("   - If depth is wrong, use these controls:")
-    print("     • '+' or '=' : Increase depth scale (if reading too low)")
-    print("     • '-' : Decrease depth scale (if reading too high)")
+    if manual_calib_mode:
+        print("     • '+' or '=' : Increase depth scale by 50% (manual mode)")
+        print("     • '-' : Decrease depth scale by 33% (manual mode)")
+        print("     • 'SHIFT +' : Increase depth scale by 10%")
+        print("     • 'SHIFT -' : Decrease depth scale by 10%")
+    else:
+        print("     • '+' or '=' : Increase depth scale by 5%")
+        print("     • '-' : Decrease depth scale by 5%")
+    print("     • '1'-'9' : Set depth scale to 1x-9x quickly")
+    print("     • '0' : Set depth scale to 10x")
     print("     • 'c' : Quick calibrate assuming 1.5m distance")
     print("     • 'p' : Precise calibrate (enter actual distance)")
     print("     • 'r' : Reset depth scale to 1.0")
+    print("   💡 TIP: For construction sites, try scale 5-10x (keys 5-9)")
     print("   📹 OTHER CONTROLS:")
     print("   - Press 'q' or ESC to quit quickly")
     print("   - Press 's' to save current frame")
+    if should_record:
+        print(f"   🔴 Recording output video: {output_filename}")
     if args.use_yolov8:
         print("   📸 Using YOLOv8n for better human detection")
     if depth_logger.enabled:
         print(f"   📊 Depth logging enabled: Every {args.log_interval} seconds")
     if args.measure_distance:
         print("   📐 Distance measurement enabled: Shows 3D distance between objects")
+    if args.input:
+        if args.fast_process:
+            print("   ⚡ Fast processing mode: Processing video as fast as possible")
+        else:
+            print("   🕒 Real-time mode: Processing video at original 1:1 timing")
     print("   🎯 Stand 1-2m away and calibrate for best accuracy")
     
     # Helper for auto calibration (geometric) - placed before processing loop so it's in scope
@@ -967,6 +1106,7 @@ def main():
         fx = camera_params.get('fx', 640.0)
         valid_scales = []
         for det in detections:
+            # Only use person detections for auto-calibration (most reliable for height estimation)
             if det['class'].lower() != 'person':
                 continue
             (x1, y1, x2, y2) = det['bbox']
@@ -1002,6 +1142,14 @@ def main():
     try:
         frame_count = 0
         exit_requested = False
+        start_time = time.time()
+        
+        # Get video FPS for timing control
+        video_fps = cap.get(cv2.CAP_PROP_FPS) if args.input else 30
+        if video_fps <= 0 or video_fps > 60:  # Handle invalid FPS values
+            video_fps = 30
+        frame_duration = 1.0 / video_fps
+        
         while True:
             ret, frame = cap.read()
             if not ret:
@@ -1010,8 +1158,17 @@ def main():
             frame_count += 1
             current_time = time.time()
             
-            # Check for exit and process input every frame for faster response
-            key = cv2.waitKey(1) & 0xFF
+            # Calculate timing for 1:1 playback (only for video files, not webcam)
+            if args.input and not args.fast_process:
+                expected_time = start_time + (frame_count - 1) * frame_duration
+                time_diff = expected_time - current_time
+                if time_diff > 0:
+                    # We're ahead of schedule, wait
+                    time.sleep(min(time_diff, frame_duration))
+            
+            # Check for exit and process input with appropriate timing
+            wait_time = 1 if args.input else 1  # Keep responsive for both cases
+            key = cv2.waitKey(wait_time) & 0xFF
             if key == ord('q') or key == 27:  # 'q' or ESC key
                 print("🛑 Exit requested...")
                 exit_requested = True
@@ -1026,11 +1183,26 @@ def main():
                 except:
                     print("⚠️ Failed to save frame")
             elif key == ord('+') or key == ord('='):
-                processor.user_scale *= 1.05
+                if manual_calib_mode:
+                    processor.user_scale *= 1.5  # 50% increase in manual mode
+                else:
+                    processor.user_scale *= 1.05  # 5% increase in normal mode
                 print(f"🔧 User scale: {processor.user_scale:.3f} (auto:{processor.auto_scale:.3f} eff:{processor.effective_scale():.3f})")
             elif key == ord('-'):
-                processor.user_scale *= 0.95
+                if manual_calib_mode:
+                    processor.user_scale *= 0.67  # 33% decrease in manual mode
+                else:
+                    processor.user_scale *= 0.95  # 5% decrease in normal mode
                 print(f"🔧 User scale: {processor.user_scale:.3f} (auto:{processor.auto_scale:.3f} eff:{processor.effective_scale():.3f})")
+            elif key >= ord('1') and key <= ord('9'):
+                # Quick scale setting (1x to 9x)
+                scale_factor = key - ord('0')
+                processor.user_scale = float(scale_factor)
+                print(f"🔧 Quick scale set to {scale_factor}x: {processor.user_scale:.3f}")
+            elif key == ord('0'):
+                # Set to 10x scale
+                processor.user_scale = 10.0
+                print(f"🔧 Quick scale set to 10x: {processor.user_scale:.3f}")
             elif key == ord('c'):
                 # Quick manual calibration: assume cursor distance entered
                 if 'combined' in locals() and mouse_data['cursor_pos'] and 'depth_map_resized' in locals():
@@ -1170,6 +1342,11 @@ def main():
             print(f"   Average processing time: {avg_time*1000:.1f}ms")
             print(f"   Average FPS: {1/avg_time:.1f}")
             print(f"   Processed {len(processing_times)} frames")
+        
+        # Report recording completion
+        if should_record and writer is not None:
+            print(f"🎬 Video saved successfully: {output_path}")
+            print(f"   Contains depth estimation and object detection overlays")
         
         print("✅ Done!")
 

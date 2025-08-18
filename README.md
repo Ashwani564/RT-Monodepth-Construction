@@ -8,12 +8,17 @@ A real-time **metric monocular depth estimation** system using RT-MonoDepth neur
 ## Features
 
 - 🎯 **Metric monocular depth estimation** with RT-MonoDepth neural network
--  **Accurate metric depth measurements** at detection points  
-- � **Person detection** using custom YOLOv11n weights
-- �🔧 **Interactive calibration** with real-time keyboard controls
-- 🚀 **Multi-platform support** - macOS (Apple Silicon), Linux, Jetson Nano
+- 📏 **Accurate metric depth measurements** at detection points  
+- 👥 **Multi-object detection** using custom YOLOv11n weights (Person, machinery, vehicle)
+- 🏗️ **Construction site optimization** with specialized YOLO training for safety equipment
+- 🔧 **Interactive calibration** with real-time keyboard controls
+- � **Distance measurement** between detected objects in 3D space
+- 🕒 **Real-time video processing** with 1:1 timing or fast processing modes
+- 📊 **Data logging** with CSV export for depth measurements and object distances
+- �🚀 **Multi-platform support** - macOS (Apple Silicon), Linux, Jetson Nano
 - ⚡ **Hardware acceleration** - MLX (macOS), CUDA (Linux/Jetson), CPU fallback
-- 📹 **Video recording** capability with depth annotations
+- 📹 **Video recording** capability with depth annotations and object detection overlays
+- 🎬 **Batch processing** support for multiple video files
 
 ## System Requirements
 
@@ -190,6 +195,58 @@ Options:
   --person-height FLOAT      Assumed average person height in meters [default: 1.70]
   --auto-calib-min-frames INTEGER  Frames to wait before applying first auto scale update [default: 15]
   --auto-calib-smoothing FLOAT     EMA smoothing factor (0-1, higher = slower changes) [default: 0.9]
+  --log-depth               Enable real-time depth logging to CSV file
+  --log-interval INTEGER     Depth logging interval in seconds [default: 60]
+  --measure-distance        Enable distance measurement between detected objects
+  --depth-scale FLOAT        Initial depth scale factor [default: 5.0 for construction sites]
+  --manual-calibration      Enable manual calibration mode with larger scale adjustments
+  --fast-process            Process video as fast as possible, ignoring original timing (default: 1:1 real-time)
+```
+
+## Usage Examples
+
+### Basic Webcam Usage
+```bash
+# Basic webcam with recording
+python realtime_depth_video.py -r
+
+# Webcam with distance measurement between objects
+python realtime_depth_video.py -r --measure-distance
+
+# Webcam with custom depth scale for construction sites
+python realtime_depth_video.py -r --depth-scale 8.0 --measure-distance
+```
+
+### Video File Processing
+```bash
+# Process video with 1:1 real-time timing (default)
+python realtime_depth_video.py -i video.mp4 -r --depth-scale 5.0
+
+# Process video as fast as possible 
+python realtime_depth_video.py -i video.mp4 -r --depth-scale 5.0 --fast-process
+
+# Process with distance measurement and depth logging
+python realtime_depth_video.py -i video.mp4 -r --measure-distance --log-depth --log-interval 30
+
+# Construction site video with optimized settings
+python realtime_depth_video.py -i construction_video.mp4 -r --depth-scale 8.0 --measure-distance --manual-calibration
+```
+
+### Batch Video Processing
+```bash
+# Process multiple videos in Input_video folder
+python realtime_depth_video.py -i Input_video/video1.mp4 -r --depth-scale 3.0 --measure-distance
+python realtime_depth_video.py -i Input_video/video2.mp4 -r --depth-scale 5.0 --measure-distance
+python realtime_depth_video.py -i Input_video/video3.mp4 -r --depth-scale 8.0 --measure-distance
+```
+
+### Model Comparison
+```bash
+# Use custom construction-trained YOLO model (default)
+python realtime_depth_video.py -i video.mp4 -r --depth-scale 5.0
+
+# Use standard YOLOv8 model for comparison
+python realtime_depth_video.py -i video.mp4 -r --depth-scale 5.0 --use-yolov8
 ```
 
 ## Real-time Controls
@@ -206,7 +263,34 @@ Once the application is running, use these keyboard controls:
 ### General Controls
 - **`q` or `ESC`** : Quit application
 - **`s`** : Save current frame as image
+- **`1`-`9`** : Quick depth scale setting (1x to 9x)
+- **`0`** : Set depth scale to 10x
 - **Mouse movement** : Show depth measurement at cursor position
+
+## New Features (Latest Update)
+
+### 🕒 Video Timing Control
+- **Real-time mode (default)**: Videos are processed at their original timing (1:1 speed)
+- **Fast processing mode**: Use `--fast-process` to process videos as quickly as possible
+- Webcam processing remains real-time regardless of mode
+
+### 📐 Distance Measurement
+- Measures 3D distances between detected objects
+- Enable with `--measure-distance` flag
+- Displays distance lines and measurements on video overlay
+- Logs distance data to CSV when depth logging is enabled
+
+### 📊 Enhanced Data Logging
+- Real-time depth logging to CSV files with `--log-depth`
+- Configurable logging interval with `--log-interval`
+- Includes object positions, depths, and inter-object distances
+- Timestamp and frame information for data analysis
+
+### 🏗️ Construction Site Optimization
+- Custom YOLO model trained on construction safety equipment
+- Detects: Person, machinery, vehicle, safety equipment
+- Optimized depth scales for construction environments (5.0-8.0x)
+- Safety equipment filtering (hardhats, vests) with detection logging
 
 ## Calibration Guide
 
