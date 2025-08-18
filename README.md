@@ -9,6 +9,7 @@ A real-time **metric monocular depth estimation** system using RT-MonoDepth neur
 🎬 **Example processed video**: 
 
 ![depth_estimation_3_20250817_212341 (1)](https://github.com/user-attachments/assets/95680410-efee-4497-8aeb-bbd12b546751)
+![depth_estimation_1_20250817_212451](https://github.com/user-attachments/assets/edb54610-feab-4b05-b402-f291ae0e96f6)
 
 - Shows real-time depth estimation with object detection
 - Construction site scenario with person detection
