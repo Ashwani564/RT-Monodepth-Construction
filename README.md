@@ -75,6 +75,9 @@ source env/bin/activate
 sudo apt-get update
 sudo apt-get install -y python3-opencv libopencv-dev
 ```
+**On Windows**
+I am sorry. Here's linux OS installation link: https://www.linux.org/pages/download/
+
 
 ### 3. Install Dependencies
 
