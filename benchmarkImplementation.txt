@@ -1,0 +1,644 @@
+BENCHMARK IMPLEMENTATION PLAN FOR RT-MONODEPTH-CONSTRUCTION
+============================================================
+
+Based on analysis of your RT-Monodepth-Construction repository, this plan is tailored to your specific implementation. Your project uses RT-MonoDepth for real-time metric monocular depth estimation with YOLO object detection, optimized for MacBook M1 Pro and Jetson Nano.
+
+**Current Project Structure:**
+- Models: RTMonoDepth (full) and RTMonoDepth_s (small) variants in `networks/RTMonoDepth/`
+- Weights: Located in `weights/RTMonoDepth/` with separate folders for full and small models
+  - Full models: `weights/RTMonoDepth/full/` (m_640_192, ms_640_192, s_640_192, sh_640_192)
+  - Small models: `weights/RTMonoDepth/s/` (m_640_192, ms_640_192)
+- Main inference: `realtime_depth_video.py` (1356 lines) - handles video processing
+- Model loading: Uses `DepthEncoder` and `DepthDecoder` classes
+- Depth conversion: `layers.py` contains `disp_to_depth()` function
+
+**Missing Components:** No existing evaluation scripts for NYUv2 benchmarking
+
+This plan creates a complete 3-stage benchmark system from scratch.
+
+-----
+
+### **Preparation: Gather Your Datasets**
+
+Before you begin, you will need:
+
+1.  **NYUv2 Labeled Dataset:** The `.mat` file (`nyu_depth_v2_labeled.mat`) containing 1449 paired images and depth maps.
+    - Download from: http://horatio.cs.nyu.edu/mit/silberman/nyu_depth_v2/nyu_depth_v2_labeled.mat
+    - Place in: `datasets/nyu_depth_v2/` (create this folder)
+
+2.  **Eigen Test Split:** The official 654-image test split file
+    - Create file: `datasets/splits/eigen_test_files.txt`
+    - Or use all 1449 images for full evaluation
+
+3.  **NYUv2 Raw Video Sequences (Optional):** For Stage 2 temporal consistency testing
+    - Download from: http://horatio.cs.nyu.edu/mit/silberman/nyu_depth_v2/nyu_depth_v2_raw.zip
+    - Place in: `datasets/nyu_depth_v2_raw/`
+
+
+-----
+
+### **Stage 1: Per-Frame Accuracy**
+
+**Goal:** Measure your RT-MonoDepth model's accuracy on a per-frame basis and compare it to other published models.
+
+**Your Action Plan:**
+
+1.  **Create Evaluation Script:** You need to create a new script `evaluate_nyu.py` (currently doesn't exist in your repo).
+
+2.  **Script Requirements - Core Evaluation Logic:**
+    
+    **a) Model Loading (adapt from your `realtime_depth_video.py` structure):**
+    ```python
+    from networks.RTMonoDepth.RTMonoDepth import DepthDecoder, DepthEncoder
+    from networks.RTMonoDepth.RTMonoDepth_s import DepthDecoder as DepthDecoderS, DepthEncoder as DepthEncoderS
+    from layers import disp_to_depth
+    
+    # Determine model type based on weight path
+    is_small_model = "/s/" in weight_path or "_s" in weight_path
+    
+    # Load encoder and decoder
+    if is_small_model:
+        encoder = DepthEncoderS()
+        decoder = DepthDecoderS(encoder.num_ch_enc)
+    else:
+        encoder = DepthEncoder()
+        decoder = DepthDecoder(encoder.num_ch_enc)
+    
+    # Load weights
+    encoder_path = os.path.join(weight_path, "encoder.pth")
+    depth_path = os.path.join(weight_path, "depth.pth")
+    encoder.load_state_dict(torch.load(encoder_path, map_location=device))
+    decoder.load_state_dict(torch.load(depth_path, map_location=device))
+    
+    encoder.eval()
+    decoder.eval()
+    ```
+    
+    **b) NYUv2 Data Loading:**
+    - Use scipy or h5py to load the `.mat` file
+    - Extract RGB images and depth maps
+    - Images are typically 480x640, depths are in meters
+    
+    **c) Preprocessing (CRITICAL - must match training):**
+    - Your encoder normalizes: `x = (x - 0.45) / 0.225` (see RTMonoDepth.py line 52)
+    - Input images should be RGB, normalized to [0, 1] before this step
+    - Resize to 640x192 (based on your weight folder naming: `_640_192`)
+    
+    **d) Inference:**
+    ```python
+    with torch.no_grad():
+        features = encoder(input_image)
+        outputs = decoder(features)
+        
+        # Get disparity and convert to depth
+        disp = outputs[("disp", 0)]
+        # Use your existing disp_to_depth function from layers.py
+        _, depth = disp_to_depth(disp, min_depth=0.1, max_depth=10.0)
+    ```
+    
+    **e) Post-processing (CRITICAL for fair comparison):**
+    - **Resize depth prediction** back to 480x640 (original NYUv2 size)
+    - **Apply Eigen Crop:** Crop both prediction and ground truth to `[45:471, 41:601]`
+    - **Depth Capping:** Clamp all values (pred and GT) to max 10 meters: `depth = np.clip(depth, 0.1, 10.0)`
+    - **Median Scaling (if needed):** If your model outputs relative depth, apply median scaling:
+      ```python
+      ratio = np.median(gt_depth) / np.median(pred_depth)
+      pred_depth_scaled = pred_depth * ratio
+      ```
+    
+    **f) Compute Standard Metrics:**
+    Implement the 7 standard metrics:
+    - **Absolute Relative Error (AbsRel):** `mean(|gt - pred| / gt)`
+    - **Squared Relative Error (SqRel):** `mean((gt - pred)^2 / gt)`
+    - **Root Mean Squared Error (RMSE):** `sqrt(mean((gt - pred)^2))`
+    - **RMSE log:** `sqrt(mean((log(gt) - log(pred))^2))`
+    - **Accuracy thresholds (δ < 1.25):** `% of pixels where max(gt/pred, pred/gt) < 1.25`
+    - **δ < 1.25²:** Same with threshold 1.5625
+    - **δ < 1.25³:** Same with threshold 1.953125
+
+3.  **Create the Script Structure:**
+    ```
+    evaluate_nyu.py
+    ├── load_nyu_data()          # Load .mat file
+    ├── load_model()              # Load RT-MonoDepth weights
+    ├── preprocess_image()        # Resize and normalize
+    ├── run_inference()           # Get depth prediction
+    ├── apply_eigen_crop()        # Crop to standard region
+    ├── compute_metrics()         # Calculate 7 metrics
+    └── main()                    # Run full evaluation
+    ```
+
+4.  **Test Multiple Model Variants:**
+    Your project has several weight variants to test:
+    - `weights/RTMonoDepth/full/s_640_192/`
+    - `weights/RTMonoDepth/full/m_640_192/`
+    - `weights/RTMonoDepth/full/ms_640_192/`
+    - `weights/RTMonoDepth/full/sh_640_192/`
+    - `weights/RTMonoDepth/s/m_640_192/`
+    - `weights/RTMonoDepth/s/ms_640_192/`
+    
+    Run evaluation on each to compare accuracy vs. speed tradeoffs.
+
+5.  **Run the Benchmark:**
+    ```powershell
+    python evaluate_nyu.py --data_path datasets/nyu_depth_v2/nyu_depth_v2_labeled.mat --model_path weights/RTMonoDepth/full/s_640_192 --split eigen
+    ```
+
+6.  **Expected Output Format:**
+    ```
+    Evaluating RT-MonoDepth (s_640_192) on NYUv2 Eigen Split
+    =========================================================
+    Dataset: 654 images (Eigen test split)
+    Resolution: 640x192 → 480x640
+    Depth range: 0.1m - 10.0m
+    
+    Results:
+    --------
+    AbsRel:    0.XXX
+    SqRel:     X.XXX
+    RMSE:      X.XXX
+    RMSElog:   0.XXX
+    δ < 1.25:  0.XXX
+    δ < 1.25²: 0.XXX
+    δ < 1.25³: 0.XXX
+    ```
+
+
+-----
+
+### **Stage 2: Temporal Consistency**
+
+**Goal:** Measure the stability of your RT-MonoDepth model's video output to ensure it doesn't "flicker" or "jitter" between frames.
+
+**Your Action Plan:**
+
+1.  **Create Video Evaluation Script:** Create `evaluate_temporal.py` (new script).
+
+2.  **Leverage Existing Video Processing Code:**
+    Your `realtime_depth_video.py` already has excellent video processing infrastructure. Adapt this for temporal consistency evaluation:
+    - Video frame reading and preprocessing
+    - Model inference pipeline
+    - Batch processing capabilities
+    
+3.  **Script Structure:**
+    ```
+    evaluate_temporal.py
+    ├── load_model()                    # Reuse from Stage 1
+    ├── load_nyu_video_sequence()       # Load raw NYUv2 video
+    ├── run_video_inference()           # Process entire sequence
+    ├── compute_temporal_metrics()      # TAE, frame-to-frame metrics
+    └── main()
+    ```
+
+4.  **Step 2a: Video Inference Pipeline**
+    ```python
+    # Adapt from your realtime_depth_video.py structure
+    depth_predictions = []
+    ground_truth_depths = []
+    
+    for frame_idx, frame in enumerate(video_sequence):
+        # Preprocess (same as Stage 1)
+        input_tensor = preprocess_image(frame)
+        
+        # Inference (sequential processing - important!)
+        with torch.no_grad():
+            features = encoder(input_tensor)
+            outputs = decoder(features)
+            _, depth = disp_to_depth(outputs[("disp", 0)], 0.1, 10.0)
+        
+        depth_predictions.append(depth.cpu().numpy())
+        ground_truth_depths.append(gt_depth[frame_idx])
+    ```
+
+5.  **Step 2b: Temporal Consistency Metrics**
+    
+    Implement these metrics:
+    
+    **a) Temporal Alignment Error (TAE) - Primary Metric:**
+    ```python
+    def compute_tae(pred_depths, gt_depths):
+        """
+        Measures if model's depth changes match ground truth changes
+        """
+        tae_scores = []
+        for t in range(len(pred_depths) - 1):
+            pred_t = pred_depths[t]
+            pred_t1 = pred_depths[t + 1]
+            gt_t = gt_depths[t]
+            gt_t1 = gt_depths[t + 1]
+            
+            # Compute ratio of change (avoid division by zero)
+            pred_ratio = pred_t / (pred_t1 + 1e-6)
+            gt_ratio = gt_t / (gt_t1 + 1e-6)
+            
+            # MSE between ratios
+            tae = np.mean((pred_ratio - gt_ratio) ** 2)
+            tae_scores.append(tae)
+        
+        return np.mean(tae_scores)
+    ```
+    
+    **b) Frame-to-Frame Depth Variance:**
+    ```python
+    def compute_depth_variance(pred_depths):
+        """
+        Measures how much depth changes between consecutive frames
+        Lower = more stable (assuming static scene)
+        """
+        variances = []
+        for t in range(len(pred_depths) - 1):
+            diff = np.abs(pred_depths[t] - pred_depths[t + 1])
+            variances.append(np.mean(diff))
+        return np.mean(variances), np.std(variances)
+    ```
+    
+    **c) Optical Flow-Weighted Consistency (Advanced):**
+    ```python
+    # If available, use optical flow to account for camera motion
+    # Areas with low optical flow should have low depth change
+    def compute_flow_weighted_consistency(pred_depths, optical_flows):
+        """
+        Penalize depth changes in static regions
+        """
+        consistency_scores = []
+        for t in range(len(pred_depths) - 1):
+            depth_diff = np.abs(pred_depths[t] - pred_depths[t + 1])
+            flow_magnitude = np.linalg.norm(optical_flows[t], axis=-1)
+            
+            # Static regions (low flow) should have low depth change
+            static_mask = flow_magnitude < 2.0  # threshold
+            static_depth_change = depth_diff[static_mask]
+            
+            consistency_scores.append(np.mean(static_depth_change))
+        
+        return np.mean(consistency_scores)
+    ```
+
+6.  **Dataset Selection for Temporal Testing:**
+    Use NYUv2 raw sequences or your own construction site videos from `realtime_depth_video.py`.
+    
+    **Option A: NYUv2 Raw Sequences**
+    - Use bedroom/office sequences with slow camera motion
+    - Ground truth available for TAE calculation
+    
+    **Option B: Your Own Videos (Practical Approach)**
+    - Use videos you've already processed with `realtime_depth_video.py`
+    - Focus on frame-to-frame variance (no GT needed)
+    - More relevant to your construction site use case
+
+7.  **Run the Benchmark:**
+    ```powershell
+    # With NYUv2 raw
+    python evaluate_temporal.py --video_path datasets/nyu_depth_v2_raw/bedroom_0001 --model_path weights/RTMonoDepth/full/s_640_192 --gt_available
+    
+    # With your own videos
+    python evaluate_temporal.py --video_path test_videos/construction_site.mp4 --model_path weights/RTMonoDepth/full/s_640_192
+    ```
+
+8.  **Expected Output:**
+    ```
+    Temporal Consistency Evaluation - RT-MonoDepth (s_640_192)
+    ===========================================================
+    Video: bedroom_0001
+    Frames: 500
+    Resolution: 640x192
+    
+    Results:
+    --------
+    Temporal Alignment Error (TAE):     X.XXX
+    Mean Frame-to-Frame Variance:        X.XXX m
+    Std Frame-to-Frame Variance:         X.XXX m
+    Flow-Weighted Consistency:           X.XXX
+    
+    Interpretation:
+    - TAE < 0.01: Excellent temporal stability
+    - Variance < 0.05m: Low flicker in static scenes
+    ```
+
+9.  **Integration with Existing Pipeline:**
+    Your `realtime_depth_video.py` already has video processing. Consider adding a `--benchmark_temporal` flag to enable temporal metrics logging during normal video processing.
+
+
+
+-----
+
+### **Stage 3: Performance (FPS)**
+
+**Goal:** Prove your RT-MonoDepth model meets its "RT" (Real-Time) claim across different platforms.
+
+**Your Action Plan:**
+
+1.  **Create Performance Benchmark Script:** Create `benchmark_fps.py` (new script).
+
+2.  **Adapt from Your Multi-Platform Code:**
+    Your project supports MacBook M1 Pro, Linux, and Jetson Nano. The FPS benchmark should test on all target platforms.
+    
+    From `realtime_depth_video.py`, you already handle:
+    - MLX acceleration for Apple Silicon
+    - CUDA for Linux/Jetson
+    - CPU fallback
+    
+3.  **Script Structure:**
+    ```python
+    import torch
+    import time
+    import platform
+    import argparse
+    from networks.RTMonoDepth.RTMonoDepth import DepthDecoder, DepthEncoder
+    from networks.RTMonoDepth.RTMonoDepth_s import DepthDecoder as DepthDecoderS, DepthEncoder as DepthEncoderS
+    from layers import disp_to_depth
+    
+    def benchmark_model(model_path, resolution=(640, 192), num_warmup=30, num_iterations=100):
+        # Detect platform and device
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+            platform_name = "CUDA"
+        elif torch.backends.mps.is_available():
+            device = torch.device("mps")
+            platform_name = "MPS (Apple Silicon)"
+        else:
+            device = torch.device("cpu")
+            platform_name = "CPU"
+        
+        # Load model (same as Stage 1)
+        is_small_model = "/s/" in model_path
+        if is_small_model:
+            encoder = DepthEncoderS()
+            decoder = DepthDecoderS(encoder.num_ch_enc)
+        else:
+            encoder = DepthEncoder()
+            decoder = DepthDecoder(encoder.num_ch_enc)
+        
+        encoder_path = os.path.join(model_path, "encoder.pth")
+        depth_path = os.path.join(model_path, "depth.pth")
+        encoder.load_state_dict(torch.load(encoder_path, map_location=device))
+        decoder.load_state_dict(torch.load(depth_path, map_location=device))
+        
+        encoder.to(device).eval()
+        decoder.to(device).eval()
+        
+        # Create dummy input (batch_size=1)
+        width, height = resolution
+        dummy_input = torch.randn(1, 3, height, width).to(device)
+        
+        # Warm-up phase (CRITICAL!)
+        print(f"Warming up ({num_warmup} iterations)...")
+        for _ in range(num_warmup):
+            with torch.no_grad():
+                features = encoder(dummy_input)
+                outputs = decoder(features)
+        
+        # Synchronize device
+        if device.type == "cuda":
+            torch.cuda.synchronize()
+        elif device.type == "mps":
+            torch.mps.synchronize()
+        
+        # Benchmark phase
+        print(f"Running benchmark ({num_iterations} iterations)...")
+        t_start = time.perf_counter()
+        
+        for _ in range(num_iterations):
+            with torch.no_grad():
+                features = encoder(dummy_input)
+                outputs = decoder(features)
+        
+        # Synchronize again
+        if device.type == "cuda":
+            torch.cuda.synchronize()
+        elif device.type == "mps":
+            torch.mps.synchronize()
+        
+        t_end = time.perf_counter()
+        
+        # Calculate metrics
+        total_time = t_end - t_start
+        avg_time = total_time / num_iterations
+        fps = 1.0 / avg_time
+        
+        return {
+            'platform': platform_name,
+            'device': str(device),
+            'resolution': resolution,
+            'avg_time_ms': avg_time * 1000,
+            'fps': fps,
+            'total_iterations': num_iterations
+        }
+    ```
+
+4.  **Test Multiple Configurations:**
+    
+    **a) Different Resolutions:**
+    ```python
+    resolutions = [
+        (640, 192),  # Your standard training resolution
+        (320, 96),   # Lower resolution for edge devices
+        (1024, 320)  # Higher resolution
+    ]
+    ```
+    
+    **b) Different Model Variants:**
+    ```python
+    models = [
+        'weights/RTMonoDepth/s/m_640_192',      # Small model
+        'weights/RTMonoDepth/full/s_640_192',   # Full model
+        'weights/RTMonoDepth/full/m_640_192',   # Full medium
+    ]
+    ```
+    
+    **c) Batch Size Testing (Optional):**
+    Test batch processing if your use case involves processing multiple streams:
+    ```python
+    batch_sizes = [1, 2, 4, 8]
+    ```
+
+5.  **Platform-Specific Considerations:**
+    
+    **For MacBook M1 Pro:**
+    - Test both MPS (Metal Performance Shaders) and CPU
+    - Your code already supports MLX - benchmark that too
+    - Expected: 30-60 FPS at 640x192
+    
+    **For Jetson Nano:**
+    - Test with different power modes (5W, 10W)
+    - Monitor temperature and throttling
+    - Expected: 10-30 FPS at 640x192
+    
+    **For Linux/Desktop GPU:**
+    - Test with different CUDA versions
+    - Try mixed precision (FP16) for speedup
+    - Expected: 60-120+ FPS at 640x192
+
+6.  **Memory Profiling (Important for Edge Devices):**
+    ```python
+    import psutil
+    
+    def measure_memory_usage(model_path, device):
+        # Track peak memory usage
+        process = psutil.Process()
+        mem_before = process.memory_info().rss / 1024**2  # MB
+        
+        # Load model and run inference
+        # ... (model loading code)
+        
+        mem_after = process.memory_info().rss / 1024**2  # MB
+        
+        if device.type == "cuda":
+            gpu_mem = torch.cuda.max_memory_allocated() / 1024**2  # MB
+            return {
+                'cpu_memory_mb': mem_after - mem_before,
+                'gpu_memory_mb': gpu_mem
+            }
+        else:
+            return {'cpu_memory_mb': mem_after - mem_before}
+    ```
+
+7.  **Run the Benchmark:**
+    ```powershell
+    # Test single model
+    python benchmark_fps.py --model_path weights/RTMonoDepth/full/s_640_192 --resolution 640 192
+    
+    # Test all models and resolutions
+    python benchmark_fps.py --test_all --output results/fps_benchmark.csv
+    ```
+
+8.  **Expected Output Format:**
+    ```
+    RT-MonoDepth Performance Benchmark
+    ==================================
+    
+    System Information:
+    -------------------
+    Platform:        MacBook M1 Pro / NVIDIA Jetson Nano / Linux Desktop
+    OS:              macOS 14.0 / Ubuntu 20.04
+    Python:          3.9.x
+    PyTorch:         2.0.x
+    Device:          MPS / CUDA / CPU
+    
+    Model: weights/RTMonoDepth/full/s_640_192
+    Resolution: 640x192
+    
+    Performance Metrics:
+    --------------------
+    Average Inference Time:   22.5 ms
+    Frames Per Second (FPS):  44.4 fps
+    Peak Memory Usage:        512 MB (GPU) / 256 MB (CPU)
+    
+    Breakdown:
+    ----------
+    - Encoder time:     15.2 ms (67.6%)
+    - Decoder time:      7.3 ms (32.4%)
+    
+    Comparison with Model Variants:
+    --------------------------------
+    Model                    Resolution   FPS     Memory
+    -------------------------------------------------------
+    RTMonoDepth_s (small)    640x192     58.2    384 MB
+    RTMonoDepth (full)       640x192     44.4    512 MB
+    RTMonoDepth (full)       320x96      92.1    256 MB
+    RTMonoDepth (full)       1024x320    28.3    768 MB
+    
+    Real-Time Capability: ✅ YES (>30 FPS at 640x192)
+    ```
+
+9.  **Integration with Existing Code:**
+    Your `realtime_depth_video.py` already processes video in real-time. Add performance logging:
+    
+    ```python
+    # Add to realtime_depth_video.py
+    if args.benchmark_fps:
+        fps_log = []
+        frame_times = []
+        
+        for frame in video:
+            t_start = time.perf_counter()
+            # ... inference ...
+            t_end = time.perf_counter()
+            
+            frame_times.append(t_end - t_start)
+            if len(frame_times) >= 100:
+                avg_fps = 1.0 / np.mean(frame_times)
+                fps_log.append(avg_fps)
+                print(f"Running avg FPS: {avg_fps:.1f}")
+                frame_times = []
+    ```
+
+10. **Report with Full Context (CRITICAL):**
+    Always include:
+    - **Hardware:** Specific model (e.g., "NVIDIA RTX 3070", "MacBook M1 Pro 16GB", "Jetson Nano 4GB")
+    - **Resolution:** Input resolution (e.g., "640x192")
+    - **Batch size:** Usually 1 for real-time
+    - **Precision:** FP32 vs FP16
+    - **Software:** PyTorch version, CUDA version
+    
+    **Good Example:**
+    > "RT-MonoDepth (s_640_192) achieves **44.4 FPS** on MacBook M1 Pro (MPS acceleration) at 640x192 resolution using PyTorch 2.0.1 with FP32 precision."
+    
+    **Bad Example:**
+    > "The model gets 44 FPS." ❌
+
+11. **Generate Comparison Table:**
+    Create a table comparing all your model variants:
+    
+    | Model Variant | Resolution | MacBook M1 | Jetson Nano | Desktop GPU | Memory |
+    |---------------|------------|------------|-------------|-------------|---------|
+    | s_640_192 (small) | 640x192 | 58.2 FPS | 15.3 FPS | 102.5 FPS | 384 MB |
+    | s_640_192 (full)  | 640x192 | 44.4 FPS | 12.1 FPS |  85.2 FPS | 512 MB |
+    | m_640_192 (full)  | 640x192 | 38.7 FPS |  9.8 FPS |  72.1 FPS | 640 MB |
+
+-----
+
+### **Summary: Complete Benchmark Pipeline**
+
+After completing all 3 stages, you will have:
+
+1. **`evaluate_nyu.py`** - Per-frame accuracy on NYUv2 dataset
+   - 7 standard depth metrics
+   - Comparison across model variants
+   - Proper Eigen crop and depth capping
+
+2. **`evaluate_temporal.py`** - Temporal consistency for video
+   - Temporal Alignment Error (TAE)
+   - Frame-to-frame variance
+   - Optical flow-weighted consistency
+
+3. **`benchmark_fps.py`** - Performance metrics
+   - FPS on multiple platforms
+   - Memory usage profiling
+   - Resolution and batch size testing
+
+**Final Deliverable:**
+A comprehensive benchmark report showing:
+- **Accuracy:** How well your model estimates depth (Stage 1)
+- **Stability:** How consistent it is in videos (Stage 2)  
+- **Speed:** Whether it truly runs in real-time (Stage 3)
+
+This proves your RT-MonoDepth system is accurate, stable, AND fast enough for real-time construction site monitoring.
+
+-----
+
+### **Additional Recommendations**
+
+1. **Create a Master Benchmark Script:**
+   ```powershell
+   python run_all_benchmarks.py --model_path weights/RTMonoDepth/full/s_640_192 --nyu_data datasets/nyu_depth_v2 --output_dir results/
+   ```
+   This runs all 3 stages and generates a comprehensive report.
+
+2. **Version Your Results:**
+   Track benchmarks over time as you improve the model:
+   ```
+   results/
+   ├── v1.0_baseline/
+   ├── v1.1_optimized/
+   └── v2.0_improved/
+   ```
+
+3. **Automate with GitHub Actions:**
+   Set up CI/CD to run benchmarks on each commit (if you have access to GPUs in CI).
+
+4. **Visualize Results:**
+   Create plots comparing:
+   - Accuracy vs. Speed tradeoffs
+   - Model size vs. FPS
+   - Temporal stability over different video types
