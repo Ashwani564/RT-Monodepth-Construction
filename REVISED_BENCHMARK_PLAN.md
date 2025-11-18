@@ -424,33 +424,55 @@ Distance Range    MAE      MRE     RMSE
 
 ## 🚀 **IMPLEMENTATION ROADMAP**
 
-### **Week 1-2: Stage 1 Implementation**
-- [ ] Create `evaluate_depth_multi_dataset.py`
-- [ ] Download NYU, KITTI datasets
-- [ ] Implement 7 standard metrics
-- [ ] Run on all model variants
-- [ ] Generate comparison tables
+### **Priority 1: Stage 3 - Real-Time Performance (START HERE - 1 day)**
+**Why start here:** Fastest implementation, no dataset download, immediate impressive results for paper
 
-### **Week 3: Stage 2 Implementation**
-- [ ] Create `evaluate_yolo_detection.py`
-- [ ] Create `evaluate_temporal_consistency.py`
-- [ ] Test on COCO person subset
-- [ ] Test on video sequences
-- [ ] Generate detection + temporal metrics
-
-### **Week 4: Stage 3 Implementation**
 - [ ] Create `benchmark_fps_pipeline.py`
 - [ ] Test on MacBook M1 Pro
 - [ ] Test on Jetson Nano (if available)
-- [ ] Generate performance tables
-- [ ] Create latency breakdown visualizations
+- [ ] Generate performance tables & latency breakdown visualizations
+- [ ] **Deliverable:** Complete FPS benchmark table comparing all model variants
 
-### **Week 5: Analysis & Paper Writing**
-- [ ] Aggregate all results
-- [ ] Create comparison tables
-- [ ] Generate figures
-- [ ] Write results section
-- [ ] Prepare rebuttal for reviewers
+### **Priority 2: Stage 1 - Depth Quality Evaluation (2-3 days)**
+**Goal:** Demonstrate depth prediction accuracy on standard benchmarks
+
+- [ ] Create `evaluate_depth_multi_dataset.py`
+- [ ] Download NYU, KITTI datasets (parallel with implementation)
+- [ ] Implement 7 standard metrics (Abs Rel, RMSE, δ₁, δ₂, δ₃, etc.)
+- [ ] Run on all RT-MonoDepth variants (s, m, ms)
+- [ ] **Deliverable:** Multi-dataset comparison table for paper Table 1
+
+### **Priority 3: Stage 2 - Detection & Temporal Consistency (1-2 days)**
+**Goal:** Validate YOLO integration and temporal stability
+
+- [ ] Create `evaluate_yolo_detection.py` (COCO person subset)
+- [ ] Create `evaluate_temporal_consistency.py` (NYU videos or custom)
+- [ ] Test detection metrics (mAP, precision, recall)
+- [ ] Test temporal consistency (frame-to-frame stability)
+- [ ] **Deliverable:** Detection metrics + temporal consistency plots
+
+### **Priority 4: Analysis & Paper Results (1 day)**
+**Goal:** Package everything for publication
+
+- [ ] Aggregate all results into paper-ready format
+- [ ] Create comparison tables (your method vs. state-of-art)
+- [ ] Generate figures (depth maps, FPS plots, temporal consistency)
+- [ ] Write results section draft
+- [ ] Prepare supplementary material
+
+**⏱️ Total Estimated Time: 5-7 days (full-time work)**
+
+### **Quick Start Guide**
+```bash
+# Start with Stage 3 (no dependencies)
+cd /Users/ashwani/Desktop/RT-Monodepth-Construction
+python benchmark/benchmark_fps_pipeline.py --all-models
+
+# Meanwhile, download datasets for Stage 1
+# See DATASET_DOWNLOAD_GUIDE.md for instructions
+
+# Then proceed to Stage 1, then Stage 2
+```
 
 ---
 
