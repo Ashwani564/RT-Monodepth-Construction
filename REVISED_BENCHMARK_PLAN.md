@@ -492,4 +492,3 @@ Distance Range    MAE      MRE     RMSE
 - Immediate impressive results
 - Builds confidence for paper
 
-**Want me to create the first script?** I can start with `benchmark_fps_pipeline.py` right now! 🚀
