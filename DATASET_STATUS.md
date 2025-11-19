@@ -12,10 +12,10 @@ Your datasets folder contains all 4 required datasets for Stage 1 evaluation:
 ```
 📊 Dataset Inventory:
 ├── NYU Depth V2      2.8 GB  ✅ (Indoor baseline)
-├── KITTI             27 GB   ✅ (Outdoor/driving)
-├── Cityscapes        29 GB   ✅ (Urban pedestrians)
+├── KITTI             13 GB   ✅ (Outdoor/driving)
+├── Cityscapes        14 GB   ✅ (Urban pedestrians)
 ├── Make3D            700 MB  ✅ (Diverse outdoor)
-└── TOTAL             59 GB   ✅
+└── TOTAL             31 GB   ✅
 ```
 
 ---
@@ -27,9 +27,9 @@ Your datasets folder contains all 4 required datasets for Stage 1 evaluation:
 | Your Situation | Best Method | Time | Cost |
 |----------------|-------------|------|------|
 | **1-2 colleagues nearby** | External SSD | 5 min | $150 (reusable) |
-| **Remote collaborators** | Zenodo (split) | 4-6 hrs | Free |
-| **5+ team members** | Institutional NAS | 30 min | Free |
-| **For publication** | Zenodo + DOI | 4-6 hrs | Free ⭐ |
+| **Remote collaborators** | Zenodo (split) | 2-3 hrs | Free |
+| **5+ team members** | Institutional NAS | 15 min | Free |
+| **For publication** | Zenodo + DOI | 2-3 hrs | Free ⭐ |
 
 ### **Recommended: Zenodo (Best for Q1 Journal Publication)**
 
@@ -48,10 +48,10 @@ bash prepare_datasets_for_sharing.sh
 
 # Step 2: Upload to Zenodo
 # - Visit: https://zenodo.org/deposit/new
-# - Upload 3 archives (split to stay under 50GB each):
-#   1. datasets_nyu_make3d.tar.gz (~3.5 GB)
-#   2. datasets_kitti.tar.gz (~24 GB)
-#   3. datasets_cityscapes.tar.gz (~26 GB)
+# - Upload 3 archives (all under 50GB limit):
+#   1. datasets_nyu_make3d.tar.gz (~3.2 GB)
+#   2. datasets_kitti.tar.gz (~12 GB)
+#   3. datasets_cityscapes.tar.gz (~13 GB)
 
 # Step 3: Get DOI and cite in your paper!
 ```
@@ -60,13 +60,13 @@ bash prepare_datasets_for_sharing.sh
 
 ## 📦 **COMPRESSION ESTIMATES**
 
-Based on your 59 GB dataset:
+Based on your 31 GB dataset:
 
 | Compression Method | Final Size | Time | CPU Usage |
 |--------------------|------------|------|-----------|
-| **gzip (standard)** | ~53 GB | 30 min | Low |
-| **pigz (parallel)** | ~53 GB | 8 min | High ⭐ |
-| **xz (maximum)** | ~48 GB | 2 hrs | Very High |
+| **gzip (standard)** | ~28 GB | 15 min | Low |
+| **pigz (parallel)** | ~28 GB | 4 min | High ⭐ |
+| **xz (maximum)** | ~25 GB | 1 hr | Very High |
 
 **Recommended:** Use `pigz` (parallel) for best speed/size ratio.
 
@@ -136,9 +136,9 @@ After running the preparation script, you'll have:
 
 ```
 shared_datasets/
-├── datasets_nyu_make3d.tar.gz    ~3.5 GB
-├── datasets_kitti.tar.gz         ~24 GB
-├── datasets_cityscapes.tar.gz    ~26 GB
+├── datasets_nyu_make3d.tar.gz    ~3.2 GB
+├── datasets_kitti.tar.gz         ~12 GB
+├── datasets_cityscapes.tar.gz    ~13 GB
 ├── CHECKSUMS.txt                 SHA256 hashes
 └── README.md                     Usage instructions
 ```

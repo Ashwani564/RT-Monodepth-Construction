@@ -117,7 +117,7 @@ case $choice in
 # RT-MonoDepth Construction Site Benchmark Datasets
 **Version:** 1.0
 **Date:** November 2025
-**Total Size:** 59 GB (uncompressed), ~53 GB (compressed)
+**Total Size:** 31 GB (uncompressed), ~28 GB (compressed)
 
 ## 📦 Contents
 
@@ -129,13 +129,13 @@ This package contains four standard depth estimation benchmark datasets organize
 - **Ground Truth:** Dense depth maps from Kinect
 - **Original Source:** http://horatio.cs.nyu.edu/mit/silberman/nyu_depth_v2/
 
-### 2. KITTI (27 GB)
+### 2. KITTI (13 GB)
 - **Purpose:** Outdoor/driving scenes (construction site proxy)
 - **Scenes:** 697 test images (Eigen split)
 - **Ground Truth:** Velodyne LiDAR depth
 - **Original Source:** http://www.cvlibs.net/datasets/kitti/
 
-### 3. Cityscapes (29 GB)
+### 3. Cityscapes (14 GB)
 - **Purpose:** Urban pedestrian scenarios
 - **Scenes:** Validation set with outdoor scenes
 - **Ground Truth:** Disparity maps (convertible to depth)
@@ -263,14 +263,14 @@ For the complete benchmark evaluation pipeline, see:
 ## ⚠️ Important Notes
 
 1. **Cityscapes Access:** Requires registration at https://www.cityscapes-dataset.com/
-2. **Large Files:** Total ~59 GB uncompressed
-3. **Extraction Time:** ~5-10 minutes depending on your system
+2. **Large Files:** Total ~31 GB uncompressed
+3. **Extraction Time:** ~3-5 minutes depending on your system
 4. **Recommended Storage:** SSD for faster data loading during evaluation
 
 ## 🆘 Troubleshooting
 
 **Q: Extraction fails?**
-- Ensure you have enough disk space (70+ GB free)
+- Ensure you have enough disk space (40+ GB free)
 - Check archive integrity with checksums
 
 **Q: Missing files after extraction?**

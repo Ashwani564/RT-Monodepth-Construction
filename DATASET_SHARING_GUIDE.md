@@ -6,13 +6,13 @@
 Based on your downloaded datasets:
 
 ```
-datasets/                              Total: 59 GB
+datasets/                              Total: 31 GB
 ├── nyu_depth_v2/                     2.8 GB  ✅
 │   └── nyu_depth_v2_labeled.mat
-├── kitti/                            27 GB   ✅
+├── kitti/                            13 GB   ✅
 │   ├── data_depth_annotated/
 │   └── raw_data_downloader/
-├── cityscapes/                       29 GB   ✅
+├── cityscapes/                       14 GB   ✅
 │   ├── leftImg8bit_trainvaltest/
 │   ├── camera_trainvaltest/
 │   └── disparity_trainvaltest/
@@ -55,12 +55,12 @@ wait
 # 3. Share link with "Viewer" permission
 ```
 
-**Storage Required:** ~50-55 GB compressed (compression ratio ~10-15%)
+**Storage Required:** ~28 GB compressed (compression ratio ~10%)
 
 **Upload Time Estimate:**
-- With 50 Mbps upload: ~3 hours
-- With 100 Mbps upload: ~1.5 hours
-- With 1 Gbps: ~10 minutes
+- With 50 Mbps upload: ~1.5 hours
+- With 100 Mbps upload: ~45 minutes
+- With 1 Gbps: ~5 minutes
 
 ---
 
@@ -268,7 +268,7 @@ transmission-daemon --download-dir . --seed datasets.torrent
 
 ## 🎯 **BEST PRACTICES & RECOMMENDATIONS**
 
-### **For Your Specific Case (59 GB):**
+### **For Your Specific Case (31 GB):**
 
 #### **Recommended Workflow:**
 
@@ -276,15 +276,15 @@ transmission-daemon --download-dir . --seed datasets.torrent
 ```bash
 # Use External SSD
 # Cost: $150 (one-time, reusable)
-# Time: 5 minutes per person
+# Time: 2 minutes per person
 # Best: Instant, offline, reliable
 ```
 
 **2. Remote Colleagues (Research Collaborators):**
 ```bash
-# Use Zenodo (Split into 3 uploads)
+# Use Zenodo (All files fit in single upload!)
 # Cost: Free
-# Time: 4-6 hours upload (one-time)
+# Time: 2-3 hours upload (one-time)
 # Best: Citable DOI, permanent, public good
 ```
 
@@ -292,7 +292,7 @@ transmission-daemon --download-dir . --seed datasets.torrent
 ```bash
 # Use Institutional NAS/File Server
 # Cost: Already available
-# Time: 30 minutes initial copy
+# Time: 15 minutes initial copy
 # Best: Fast LAN transfers, central access
 ```
 
@@ -307,23 +307,23 @@ cd /Users/ashwani/Desktop/RT-Monodepth-Construction
 
 # Option 1: Standard gzip compression (balanced)
 tar -czf datasets_all.tar.gz datasets/
-# Expected size: ~53 GB (10% savings)
-# Time: ~30 minutes
+# Expected size: ~28 GB (10% savings)
+# Time: ~15 minutes
 
 # Option 2: High compression (xz/lzma) - BEST compression
 tar -cJf datasets_all.tar.xz datasets/
-# Expected size: ~48 GB (18% savings)
-# Time: ~2 hours (CPU intensive)
+# Expected size: ~25 GB (19% savings)
+# Time: ~1 hour (CPU intensive)
 
-# Option 3: Parallel compression (faster) - RECOMMENDED
+# Option 3: Parallel compression (faster) - RECOMMENDED ⭐
 brew install pigz
 tar -I pigz -cf datasets_all.tar.gz datasets/
-# Time: ~8 minutes (uses all CPU cores)
+# Time: ~4 minutes (uses all CPU cores)
 
-# Option 4: Split by dataset (recommended for >50GB)
+# Option 4: Split by dataset (recommended for organization)
 tar -czf datasets_nyu.tar.gz datasets/nyu_depth_v2/           # 2.5 GB
-tar -czf datasets_kitti.tar.gz datasets/kitti/                # 24 GB
-tar -czf datasets_cityscapes.tar.gz datasets/cityscapes/      # 26 GB
+tar -czf datasets_kitti.tar.gz datasets/kitti/                # 12 GB
+tar -czf datasets_cityscapes.tar.gz datasets/cityscapes/      # 13 GB
 tar -czf datasets_make3d.tar.gz datasets/make3d/              # 600 MB
 ```
 
@@ -374,12 +374,12 @@ When sharing, include this `README.md` with the datasets:
 # RT-MonoDepth Construction Site Benchmark Datasets
 **Version:** 1.0
 **Date:** November 2025
-**Size:** 59 GB (uncompressed)
+**Size:** 31 GB (uncompressed)
 
 ## Contents
 - NYU Depth V2 (2.8 GB) - Indoor depth baseline
-- KITTI (27 GB) - Outdoor/driving scenes
-- Cityscapes (29 GB) - Urban pedestrian scenarios
+- KITTI (13 GB) - Outdoor/driving scenes
+- Cityscapes (14 GB) - Urban pedestrian scenarios
 - Make3D (700 MB) - Diverse outdoor scenes
 
 ## Usage
@@ -409,11 +409,11 @@ If you use this collection, please cite the original dataset papers:
 
 | Method | Cost | Speed | Best For | Difficulty |
 |--------|------|-------|----------|------------|
-| **External SSD** | $150 | ⭐⭐⭐⭐⭐ (5 min) | Local team | Easy |
-| **Google Drive** | Free | ⭐⭐ (3 hrs) | Remote individuals | Easy |
-| **Zenodo** | Free | ⭐⭐ (4 hrs) | Publication | Easy |
-| **Institution NAS** | Free | ⭐⭐⭐⭐⭐ (10 min) | Lab team | Easy |
-| **Syncthing P2P** | Free | ⭐⭐⭐⭐ (30 min) | Tech-savvy peers | Medium |
+| **External SSD** | $150 | ⭐⭐⭐⭐⭐ (2 min) | Local team | Easy |
+| **Google Drive** | Free | ⭐⭐⭐ (1.5 hrs) | Remote individuals | Easy |
+| **Zenodo** | Free | ⭐⭐⭐ (2 hrs) | Publication | Easy ⭐ |
+| **Institution NAS** | Free | ⭐⭐⭐⭐⭐ (5 min) | Lab team | Easy |
+| **Syncthing P2P** | Free | ⭐⭐⭐⭐ (15 min) | Tech-savvy peers | Medium |
 | **Torrenting** | Free | ⭐⭐⭐⭐ (varies) | Many recipients | Hard |
 
 ---
@@ -422,9 +422,9 @@ If you use this collection, please cite the original dataset papers:
 
 Based on your Q1 journal publication timeline:
 
-### **Primary Method: Zenodo (Split Upload)**
-1. ✅ Upload in 3 parts (stay under 50GB limit)
-2. ✅ Get DOI for each dataset
+### **Primary Method: Zenodo (Single Upload!) ⭐**
+1. ✅ Upload all datasets at once (31GB total, under 50GB limit!)
+2. ✅ Get DOI for the dataset collection
 3. ✅ Include in paper supplementary materials
 4. ✅ Cite in your methodology section
 5. ✅ Reviewers can access easily
@@ -490,10 +490,10 @@ EOF
 ## ⏱️ **TIME INVESTMENT**
 
 **One-Time Setup:**
-- Compression: 15 minutes (parallel)
-- Upload to Zenodo: 4-6 hours (background)
+- Compression: 4-5 minutes (parallel with pigz)
+- Upload to Zenodo: 2-3 hours (background)
 - Documentation: 30 minutes
-- **Total: 5-7 hours (mostly automated)**
+- **Total: 3-4 hours (mostly automated)**
 
 **Per Colleague:**
 - Send link: 1 minute
