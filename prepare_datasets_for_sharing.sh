@@ -5,7 +5,12 @@
 
 set -e  # Exit on error
 
-echo "📦 RT-MonoDepth Dataset Sharing Preparation Tool"
+echo "📦 RT-Mon## 📄 License
+
+These datasets retain their original licenses:
+- **NYU Depth V2:** Academic use allowed
+- **KITTI:** Non-commercial use only
+- **Cityscapes:** Academic use with registrationaring Preparation Tool"
 echo "================================================="
 echo ""
 
@@ -22,7 +27,6 @@ echo "-------------------------"
 du -sh datasets/nyu_depth_v2 2>/dev/null || echo "  ⚠️  NYU Depth V2: Not found"
 du -sh datasets/kitti 2>/dev/null || echo "  ⚠️  KITTI: Not found"
 du -sh datasets/cityscapes 2>/dev/null || echo "  ⚠️  Cityscapes: Not found"
-du -sh datasets/make3d 2>/dev/null || echo "  ⚠️  Make3D: Not found"
 echo "-------------------------"
 du -sh datasets/ 2>/dev/null
 echo ""
@@ -60,12 +64,12 @@ case $choice in
         mkdir -p shared_datasets
         
         if [ -d "datasets/nyu_depth_v2" ]; then
-            echo "  📦 Compressing NYU Depth V2 + Make3D..."
-            tar -I $COMPRESS_CMD -cf shared_datasets/datasets_nyu_make3d.tar.gz \
-                datasets/nyu_depth_v2/ datasets/make3d/ 2>/dev/null || \
-                tar -czf shared_datasets/datasets_nyu_make3d.tar.gz \
-                datasets/nyu_depth_v2/ datasets/make3d/
-            echo "  ✅ Done: $(du -sh shared_datasets/datasets_nyu_make3d.tar.gz | cut -f1)"
+            echo "  📦 Compressing NYU Depth V2..."
+            tar -I $COMPRESS_CMD -cf shared_datasets/datasets_nyu.tar.gz \
+                datasets/nyu_depth_v2/ 2>/dev/null || \
+                tar -czf shared_datasets/datasets_nyu.tar.gz \
+                datasets/nyu_depth_v2/
+            echo "  ✅ Done: $(du -sh shared_datasets/datasets_nyu.tar.gz | cut -f1)"
         fi
         
         if [ -d "datasets/kitti" ]; then
@@ -141,12 +145,6 @@ This package contains four standard depth estimation benchmark datasets organize
 - **Ground Truth:** Disparity maps (convertible to depth)
 - **Original Source:** https://www.cityscapes-dataset.com/
 
-### 4. Make3D (700 MB)
-- **Purpose:** Diverse outdoor scenes
-- **Scenes:** 134 test images
-- **Ground Truth:** Laser scanner depth
-- **Original Source:** http://make3d.cs.cornell.edu/
-
 ## 📁 Dataset Structure
 
 After extraction, your datasets should be organized as:
@@ -158,20 +156,17 @@ datasets/
 ├── kitti/
 │   ├── data_depth_annotated/
 │   └── raw_data_downloader/
-├── cityscapes/
-│   ├── leftImg8bit_trainvaltest/
-│   ├── camera_trainvaltest/
-│   └── disparity_trainvaltest/
-└── make3d/
-    ├── *.jpg (images)
-    └── *.dat (depth files)
+└── cityscapes/
+    ├── leftImg8bit_trainvaltest/
+    ├── camera_trainvaltest/
+    └── disparity_trainvaltest/
 ```
 
 ## 🚀 Usage
 
 1. **Extract Archives:**
    ```bash
-   tar -xzf datasets_nyu_make3d.tar.gz
+   tar -xzf datasets_nyu.tar.gz
    tar -xzf datasets_kitti.tar.gz
    tar -xzf datasets_cityscapes.tar.gz
    ```
@@ -263,7 +258,7 @@ For the complete benchmark evaluation pipeline, see:
 ## ⚠️ Important Notes
 
 1. **Cityscapes Access:** Requires registration at https://www.cityscapes-dataset.com/
-2. **Large Files:** Total ~31 GB uncompressed
+2. **Large Files:** Total ~28 GB uncompressed
 3. **Extraction Time:** ~3-5 minutes depending on your system
 4. **Recommended Storage:** SSD for faster data loading during evaluation
 
@@ -346,15 +341,6 @@ EOF
             echo "✅ Cityscapes: Found ($SIZE)"
         else
             echo "❌ Cityscapes: NOT FOUND or incomplete"
-        fi
-        
-        # Check Make3D
-        if [ -d "datasets/make3d" ] && [ "$(ls -A datasets/make3d/*.jpg 2>/dev/null)" ]; then
-            SIZE=$(du -sh datasets/make3d | cut -f1)
-            COUNT=$(ls datasets/make3d/*.jpg | wc -l | tr -d ' ')
-            echo "✅ Make3D: Found ($SIZE, $COUNT images)"
-        else
-            echo "❌ Make3D: NOT FOUND or empty"
         fi
         
         echo ""

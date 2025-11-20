@@ -3,9 +3,9 @@
 
 ## 📥 Required Datasets for Stage 1
 
-As per REVISED_BENCHMARK_PLAN.md, Stage 1 evaluates RT-MonoDepth across multiple datasets to demonstrate:
+As per REVISED_BENCHMARK_PLAN.md, Stage 1 evaluates RT-MonoDepth across three datasets to demonstrate:
 - ✅ Relative depth ordering accuracy (scale-invariant metrics)
-- ✅ Generalization across indoor/outdoor scenes
+- ✅ Generalization across indoor/outdoor scenes (NYU, KITTI, Cityscapes)
 - ✅ Comparison with SOTA monocular depth methods
 
 ---
@@ -126,41 +126,7 @@ depth = (baseline * focal_length) / disparity
 
 ---
 
-### 4. Make3D Dataset (Diverse Outdoor Scenes) - **OPTIONAL**
-
-**Purpose:** Additional outdoor validation, diverse scene types
-**Test Set:** 134 test images
-
-**Website:** http://make3d.cs.cornell.edu/data.html
-
-**What to Download:**
-
-1. **Test134 Dataset**
-   - Download: Test134.tar.gz (~2 GB)
-   - Contains 134 outdoor images with laser depth ground truth
-
-**Direct Download:**
-```bash
-mkdir -p datasets/make3d
-cd datasets/make3d
-wget http://make3d.cs.cornell.edu/data/Test134.tar.gz
-tar -xzf Test134.tar.gz
-cd ../..
-```
-
-**Place at:**
-```
-datasets/make3d/
-├── Test134/
-│   ├── img-xxxx.jpg
-│   └── depth_sph_corr-xxxx.mat
-```
-
-**Size:** ~2 GB
-
----
-
-### 5. Eigen Split Files (Test Image Lists)
+### 4. Eigen Split Files (Test Image Lists)
 
 **NYU Depth V2 Eigen Split:**
 
@@ -252,7 +218,6 @@ echo "=================================================="
 mkdir -p datasets/nyu_depth_v2
 mkdir -p datasets/kitti
 mkdir -p datasets/cityscapes
-mkdir -p datasets/make3d
 mkdir -p datasets/splits/eigen
 mkdir -p datasets/splits/eigen_benchmark
 
@@ -291,26 +256,9 @@ echo "   5. Optional: Download 'disparity_trainvaltest.zip' (3.5GB)"
 echo "   6. Unzip to: datasets/cityscapes/"
 echo ""
 
-# Make3D (OPTIONAL)
-echo ""
-echo "4️⃣  Make3D Dataset (OPTIONAL - Diverse outdoor)"
-echo "   Attempting to download Test134 set (2GB)..."
-cd datasets/make3d
-if [ ! -f "Test134.tar.gz" ]; then
-    # Note: Make3D download link may require manual download
-    echo "   ⚠️  Automatic download may fail. Manual download:"
-    echo "   Visit: http://make3d.cs.cornell.edu/data.html"
-    echo "   Download: Test134.tar.gz"
-    echo "   Place in: datasets/make3d/"
-else
-    echo "   ✅ Make3D Test134 already exists"
-    tar -xzf Test134.tar.gz 2>/dev/null || echo "   Extracting..."
-fi
-cd ../..
-
 # Download Eigen split files
 echo ""
-echo "5️⃣  Downloading Eigen split files..."
+echo "4️⃣  Downloading Eigen split files..."
 mkdir -p datasets/splits/eigen
 mkdir -p datasets/splits/eigen_benchmark
 
@@ -334,7 +282,7 @@ echo "   4. Run Stage 1 evaluation: python evaluate_depth_multi_dataset.py"
 echo ""
 echo "💡 Minimum for testing: NYU only (~3 GB)"
 echo "💡 Full evaluation: NYU + KITTI (~17 GB)"
-echo "💡 Complete benchmark: NYU + KITTI + Cityscapes + Make3D (~32 GB)"
+echo "💡 Complete benchmark: NYU + KITTI + Cityscapes (~28 GB)"
 ```
 
 Save as `download_datasets.sh` and run:
@@ -417,7 +365,6 @@ echo "📊 Storage Usage:"
 du -sh datasets/nyu_depth_v2 2>/dev/null
 du -sh datasets/kitti 2>/dev/null
 du -sh datasets/cityscapes 2>/dev/null
-du -sh datasets/make3d 2>/dev/null
 echo ""
 echo "✅ Verification complete!"
 ```
@@ -451,8 +398,7 @@ chmod +x verify_datasets.sh
 - **NYU Depth V2:** ~2.8 GB
 - **KITTI (Eigen split):** ~14 GB
 - **Cityscapes (all):** ~11 GB
-- **Make3D:** ~2 GB
-- **Total:** ~30 GB
+- **Total:** ~28 GB
 
 **Full KITTI (Optional):**
 - **KITTI (Full raw):** ~165 GB
@@ -533,13 +479,11 @@ done
 - NYU Depth V2: http://cs.nyu.edu/~silberman/datasets/nyu_depth_v2.html
 - KITTI: http://www.cvlibs.net/datasets/kitti/
 - Cityscapes: https://www.cityscapes-dataset.com/
-- Make3D: http://make3d.cs.cornell.edu/
 
 **Related Papers:**
 - NYU Depth V2: Silberman et al., ECCV 2012
 - KITTI: Geiger et al., CVPR 2012
 - Cityscapes: Cordts et al., CVPR 2016
-- Make3D: Saxena et al., IJCV 2009
 
 **Depth Evaluation Standards:**
 - Eigen et al., "Depth Map Prediction from a Single Image using a Multi-Scale Deep Network," NeurIPS 2014
