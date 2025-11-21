@@ -1,0 +1,9 @@
+Dataset,Metric,Mean,Std
+kitti,abs_rel,0.0750,0.0271
+kitti,sq_rel,0.5305,0.3812
+kitti,rmse,4.1571,1.4422
+kitti,rmse_log,0.1276,0.0400
+kitti,a1,0.9353,0.0482
+kitti,a2,0.9824,0.0188
+kitti,a3,0.9942,0.0067
+kitti,num_valid,7514,
