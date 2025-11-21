@@ -1,0 +1,9 @@
+Dataset,Metric,Mean,Std
+cityscapes,abs_rel,0.2619,0.0709
+cityscapes,sq_rel,3.5652,2.0492
+cityscapes,rmse,12.0461,3.6355
+cityscapes,rmse_log,0.3912,0.0952
+cityscapes,a1,0.5443,0.1490
+cityscapes,a2,0.8043,0.0949
+cityscapes,a3,0.9063,0.0644
+cityscapes,num_valid,500,

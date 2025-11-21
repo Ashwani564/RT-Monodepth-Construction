@@ -224,6 +224,8 @@ def main():
                         help='Datasets to evaluate on (NYU Depth V2, KITTI, Cityscapes)')
     parser.add_argument('--data_root', type=str, default='datasets',
                         help='Root path to datasets folder')
+    parser.add_argument('--cityscapes_split', type=str, default='val', choices=['val', 'test'],
+                        help='Cityscapes split to use (val or test)')
     
     # Evaluation arguments
     parser.add_argument('--batch_size', type=int, default=8,
@@ -304,9 +306,15 @@ def main():
         
         try:
             # Load dataset
+            # Use appropriate split for each dataset
+            split = 'test'  # Default for NYU and KITTI Eigen
+            if dataset_name.lower() == 'cityscapes':
+                split = args.cityscapes_split
+            
             dataset = get_dataset(
                 dataset_name=dataset_name,
                 data_root=args.data_root,
+                split=split,
                 transform=transform
             )
             

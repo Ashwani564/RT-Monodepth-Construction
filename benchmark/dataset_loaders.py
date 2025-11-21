@@ -296,11 +296,15 @@ class CityscapesDataset(Dataset):
             # Cityscapes camera: baseline = 0.209313 m, focal = 2262.52 pixels
             disp = disp / 256.0  # Decode disparity
             
-            # Avoid division by zero
+            # Avoid division by zero and clip depth to reasonable range
             baseline_focal = 0.209313 * 2262.52  # ~473.5 m·pixels
             depth = np.zeros_like(disp)
-            valid_mask = disp > 0
+            # Only compute depth for disparity > min_disp (corresponding to max_depth of 80m)
+            min_disp = baseline_focal / 80.0  # ~5.92 pixels
+            valid_mask = disp > min_disp
             depth[valid_mask] = baseline_focal / disp[valid_mask]
+            # Clip depth to [0, 80] meters (similar to KITTI range)
+            depth = np.clip(depth, 0, 80)
             
             depth = torch.from_numpy(depth).float()
         
