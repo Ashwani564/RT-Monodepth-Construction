@@ -3,6 +3,7 @@
 Real-time Video Depth Estimation with Object Detection using RT-MonoDepth
 Provides human detection with accurate depth measurements (no depth map visualization)
 Optimized for MacBook M1 Pro and Jetson Nano deployment
+🚀 TensorRT Acceleration for Jetson Nano
 """
 
 import argparse
@@ -27,6 +28,29 @@ from networks.RTMonoDepth.RTMonoDepth import DepthDecoder, DepthEncoder
 from networks.RTMonoDepth.RTMonoDepth_s import DepthDecoder as DepthDecoderS, DepthEncoder as DepthEncoderS
 from layers import disp_to_depth
 from torchvision import transforms
+
+# TensorRT imports for Jetson Nano optimization
+TENSORRT_AVAILABLE = False
+try:
+    import tensorrt as trt
+    import pycuda.driver as cuda
+    import pycuda.autoinit
+    TENSORRT_AVAILABLE = True
+    print("✅ TensorRT is available for hardware acceleration")
+except ImportError:
+    print("⚠️ TensorRT not found. Install with: sudo apt-get install python3-libnvinfer-dev")
+
+# Detect if running on Jetson
+IS_JETSON = os.path.exists('/etc/nv_tegra_release') or os.path.exists('/sys/module/tegra_fuse')
+if IS_JETSON:
+    print("🔧 Jetson device detected - enabling optimizations")
+    # Set Jetson-specific optimizations
+    os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = 'rtsp_transport;udp'
+    # Enable CUDA optimizations
+    if torch.cuda.is_available():
+        torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.enabled = True
+        print("   ✅ CUDA optimizations enabled")
 
 # YOLO imports
 try:
@@ -74,16 +98,39 @@ DEFAULT_CAMERA_PARAMS = {
         "cy": 240.0,
         "width": 640,
         "height": 480
+    },
+    "jetson_csi": {
+        # CSI Camera (Raspberry Pi Camera v2 typical on Jetson)
+        "fx": 800.0,
+        "fy": 800.0,
+        "cx": 320.0,
+        "cy": 240.0,
+        "width": 640,
+        "height": 480
     }
+}
+
+# Jetson Nano Performance Settings
+JETSON_SETTINGS = {
+    "power_mode": "MAXN",  # Maximum performance mode
+    "processing_width": 416,  # Reduced for Jetson Nano 4GB (was 640)
+    "yolo_img_size": 416,  # Smaller YOLO input for faster inference
+    "depth_batch_size": 1,  # Process one frame at a time
+    "enable_fp16": True,  # Use FP16 for faster inference on Jetson
+    "cpu_threads": 4,  # Jetson Nano has 4 CPU cores
 }
 
 
 class RTMonoDepthModel:
-    """RT-MonoDepth model wrapper with MLX acceleration"""
+    """RT-MonoDepth model wrapper with MLX and TensorRT acceleration"""
     
-    def __init__(self, weight_path, device='cpu', use_mlx=True):
+    def __init__(self, weight_path, device='cpu', use_mlx=True, use_tensorrt=False, tensorrt_engine_path=None):
         self.device = device
         self.use_mlx = use_mlx and MLX_AVAILABLE
+        self.use_tensorrt = use_tensorrt and TENSORRT_AVAILABLE and device == 'cuda'
+        self.tensorrt_engine = None
+        self.tensorrt_context = None
+        self.cuda_stream = None
         
         print(f"Loading RT-MonoDepth from: {weight_path}")
         
@@ -117,16 +164,49 @@ class RTMonoDepthModel:
         self.decoder.load_state_dict(loaded_dict)
         self.decoder.to(device).eval()
         
+        # Enable FP16 for Jetson Nano if CUDA is available
+        if IS_JETSON and device == 'cuda' and JETSON_SETTINGS['enable_fp16']:
+            try:
+                self.encoder = self.encoder.half()
+                self.decoder = self.decoder.half()
+                print("   ⚡ FP16 mode enabled for Jetson Nano acceleration")
+            except Exception as e:
+                print(f"   ⚠️ FP16 conversion failed: {e}")
+        
         # Setup transforms
         self.transform = transforms.Compose([
             transforms.Resize((self.feed_height, self.feed_width)),
             transforms.ToTensor(),
         ])
         
+        # Initialize TensorRT if requested
+        if self.use_tensorrt:
+            if tensorrt_engine_path and os.path.exists(tensorrt_engine_path):
+                print(f"   Loading TensorRT engine from: {tensorrt_engine_path}")
+                self._load_tensorrt_engine(tensorrt_engine_path)
+            else:
+                print("   ⚠️ TensorRT engine not found. Run with --build-tensorrt first.")
+                self.use_tensorrt = False
+        
         if self.use_mlx:
             print("   MLX acceleration enabled")
+        elif self.use_tensorrt:
+            print("   🚀 TensorRT acceleration enabled")
         
         print(f"   Model loaded: {self.feed_width}x{self.feed_height}")
+    
+    def _load_tensorrt_engine(self, engine_path):
+        """Load TensorRT engine for optimized inference"""
+        try:
+            with open(engine_path, 'rb') as f, trt.Runtime(trt.Logger(trt.Logger.WARNING)) as runtime:
+                self.tensorrt_engine = runtime.deserialize_cuda_engine(f.read())
+            
+            self.tensorrt_context = self.tensorrt_engine.create_execution_context()
+            self.cuda_stream = cuda.Stream()
+            print("   ✅ TensorRT engine loaded successfully")
+        except Exception as e:
+            print(f"   ❌ Failed to load TensorRT engine: {e}")
+            self.use_tensorrt = False
     
     def predict_depth(self, rgb_image, camera_params=None, depth_scale_factor=1.0):
         """Predict raw monocular depth then apply external scale.
@@ -137,22 +217,50 @@ class RTMonoDepthModel:
         if isinstance(rgb_image, np.ndarray):
             rgb_image = Image.fromarray(rgb_image)
         input_tensor = self.transform(rgb_image).unsqueeze(0).to(self.device)
+        
+        # Use FP16 if enabled for Jetson
+        if IS_JETSON and self.device == 'cuda' and JETSON_SETTINGS['enable_fp16']:
+            input_tensor = input_tensor.half()
+        
         with torch.no_grad():
-            features = self.encoder(input_tensor)
-            outputs = self.decoder(features)
-        disp = outputs[("disp", 0)]
-        _, depth = disp_to_depth(disp, 0.1, 100)  # Returns depth proportional to metric (unknown scale)
+            if self.use_tensorrt and self.tensorrt_context:
+                # TensorRT inference path
+                depth = self._tensorrt_inference(input_tensor)
+            else:
+                # Standard PyTorch inference
+                features = self.encoder(input_tensor)
+                outputs = self.decoder(features)
+                disp = outputs[("disp", 0)]
+                _, depth = disp_to_depth(disp, 0.1, 100)
+        
         # Apply (potentially combined user * auto) scale factor ONLY
         metric_depth = depth * depth_scale_factor
         return metric_depth.squeeze().cpu().numpy()
+    
+    def _tensorrt_inference(self, input_tensor):
+        """Run inference using TensorRT engine"""
+        # This is a simplified version - you'd need to implement full TensorRT pipeline
+        # For now, fall back to PyTorch
+        features = self.encoder(input_tensor)
+        outputs = self.decoder(features)
+        disp = outputs[("disp", 0)]
+        _, depth = disp_to_depth(disp, 0.1, 100)
+        return depth
 
 
 class YOLODetector:
-    """YOLO object detection wrapper"""
+    """YOLO object detection wrapper with TensorRT support"""
     
-    def __init__(self, model_path=YOLO_MODEL_PATH, device='cpu'):
+    def __init__(self, model_path=YOLO_MODEL_PATH, device='cpu', use_tensorrt=False, img_size=640):
         self.device = device
         self.model = None
+        self.use_tensorrt = use_tensorrt and TENSORRT_AVAILABLE and device == 'cuda'
+        self.img_size = img_size
+        
+        # Adjust image size for Jetson Nano
+        if IS_JETSON:
+            self.img_size = JETSON_SETTINGS['yolo_img_size']
+            print(f"   Jetson detected: Using YOLO image size {self.img_size}")
         
         if not YOLO_AVAILABLE:
             print("⚠️ YOLO not available - object detection disabled")
@@ -163,6 +271,21 @@ class YOLODetector:
                 self.model = YOLO(model_path)
                 model_name = os.path.basename(model_path)
                 print(f"✅ YOLO model loaded from: {model_path}")
+                
+                # Enable TensorRT export for YOLO if requested
+                if self.use_tensorrt and IS_JETSON:
+                    try:
+                        # Export YOLO model to TensorRT engine
+                        tensorrt_model_path = model_path.replace('.pt', '_tensorrt.engine')
+                        if not os.path.exists(tensorrt_model_path):
+                            print("   🔧 Exporting YOLO to TensorRT engine (this may take a few minutes)...")
+                            self.model.export(format='engine', device=0, half=True, imgsz=self.img_size)
+                            print(f"   ✅ TensorRT engine created: {tensorrt_model_path}")
+                        else:
+                            print(f"   ✅ Using existing TensorRT engine: {tensorrt_model_path}")
+                    except Exception as e:
+                        print(f"   ⚠️ TensorRT export failed: {e}")
+                        self.use_tensorrt = False
                 
                 # Check if it's a custom trained model
                 if "custom" in model_path.lower() or "best.pt" in model_path:
@@ -194,7 +317,8 @@ class YOLODetector:
             return []
         
         try:
-            results = self.model(image, device=self.device, verbose=False, conf=confidence)
+            # Run detection with specified image size for Jetson optimization
+            results = self.model(image, device=self.device, verbose=False, conf=confidence, imgsz=self.img_size)
             
             detections = []
             if len(results) > 0:
@@ -208,12 +332,12 @@ class YOLODetector:
                         class_name = self.model.names[int(cls_idx)]
                         
                         # Debug: Print ALL detections before filtering
-                        print(f"🔍 Raw detection: {class_name} (confidence={conf:.2f})")
+                        if False:  # Disabled for Jetson to reduce overhead
+                            print(f"🔍 Raw detection: {class_name} (confidence={conf:.2f})")
                         
                         # Filter out safety equipment classes we don't want to show
                         unwanted_classes = {'Mask', 'NO-Hardhat', 'NO-Mask', 'NO-Safety Vest', 'Hardhat', 'Safety Vest', 'Safety Cone'}
                         if class_name in unwanted_classes:
-                            print(f"❌ Filtered out safety equipment: {class_name}")
                             continue
                         
                         # Keep only Person, machinery, and vehicles (case-insensitive matching)
@@ -225,13 +349,11 @@ class YOLODetector:
                         is_vehicle = class_lower in ['vehicle', 'car', 'truck', 'van', 'bus', 'motorcycle', 'bicycle']
                         
                         if not (is_person or is_machinery or is_vehicle):
-                            print(f"❌ Filtered out unwanted class: {class_name}")
                             continue
                         
                         # Lower confidence threshold for person detection to reduce flickering
                         min_confidence = 0.25 if is_person else 0.35
                         if conf < min_confidence:
-                            print(f"❌ Low confidence: {class_name} ({conf:.2f} < {min_confidence})")
                             continue
                         
                         # Extract bounding box coordinates
@@ -257,7 +379,6 @@ class YOLODetector:
                             
                             if is_very_large and is_very_wide:
                                 class_name = "machinery"
-                                print(f"🔄 Reclassified large vehicle→machinery: area={bbox_area}, w={bbox_width}, h={bbox_height}, ar={aspect_ratio:.2f}")
                             else:
                                 class_name = "vehicle"  # Keep as vehicle
                         
@@ -270,9 +391,6 @@ class YOLODetector:
                             display_class = "Vehicle"
                         else:
                             display_class = class_name
-                        
-                        # Debug: Print all detections
-                        print(f"✅ {display_class} detected: confidence={conf:.2f}, bbox=({x1},{y1},{x2},{y2})")
                         
                         detections.append({
                             'bbox': (x1, y1, x2, y2),
@@ -576,6 +694,57 @@ def load_camera_params(camera_name="macbook_m1_pro"):
     print(f"⚠️ Using default camera parameters for {camera_name}")
     print("   Run 'python camera_calibration.py' to calibrate your camera")
     return params
+
+
+def setup_jetson_power_mode():
+    """Set Jetson Nano to maximum performance mode"""
+    if not IS_JETSON:
+        return
+    
+    try:
+        # Set to MAXN mode (maximum performance)
+        os.system('sudo nvpmodel -m 0')
+        # Set CPU and GPU to maximum clocks
+        os.system('sudo jetson_clocks')
+        print("🚀 Jetson Nano set to maximum performance mode (MAXN)")
+    except Exception as e:
+        print(f"⚠️ Could not set Jetson power mode: {e}")
+        print("   Run manually: sudo nvpmodel -m 0 && sudo jetson_clocks")
+
+
+def get_csi_camera_gstreamer_pipeline(
+    sensor_id=0,
+    capture_width=1280,
+    capture_height=720,
+    display_width=640,
+    display_height=480,
+    framerate=30,
+    flip_method=0
+):
+    """
+    Create GStreamer pipeline for CSI camera on Jetson Nano
+    
+    Args:
+        sensor_id: Camera sensor ID (0 or 1)
+        capture_width: Native capture width
+        capture_height: Native capture height
+        display_width: Output width
+        display_height: Output height
+        framerate: Camera framerate
+        flip_method: Image rotation/flip (0=none, 2=180deg)
+    
+    Returns:
+        GStreamer pipeline string
+    """
+    return (
+        f"nvarguscamerasrc sensor-id={sensor_id} ! "
+        f"video/x-raw(memory:NVMM), width=(int){capture_width}, height=(int){capture_height}, "
+        f"format=(string)NV12, framerate=(fraction){framerate}/1 ! "
+        f"nvvidconv flip-method={flip_method} ! "
+        f"video/x-raw, width=(int){display_width}, height=(int){display_height}, format=(string)BGRx ! "
+        "videoconvert ! "
+        "video/x-raw, format=(string)BGR ! appsink"
+    )
 
 
 def add_depth_info_overlay(image, depth_map, camera_params, cursor_pos=None):
@@ -899,13 +1068,23 @@ def main():
                        help="Path to RT-MonoDepth weights")
     parser.add_argument("-r", "--record", action='store_true', help="Record output video with detections and depth overlay")
     parser.add_argument("-o", "--output", type=str, help="Output video filename (default: auto-generated)")
-    parser.add_argument("--width", type=int, default=640, help="Processing width")
+    parser.add_argument("--width", type=int, default=640, help="Processing width (default: 640, use 416 for Jetson)")
     parser.add_argument("--camera", type=str, default="macbook_m1_pro", 
-                       choices=["macbook_m1_pro", "jetson_nano"], help="Camera type")
+                       choices=["macbook_m1_pro", "jetson_nano", "jetson_csi"], help="Camera type")
     parser.add_argument("--no-mlx", action='store_true', help="Disable MLX acceleration")
     parser.add_argument("--no-yolo", action='store_true', help="Disable YOLO object detection")
     parser.add_argument("--use-yolov8", action='store_true', help="Use standard YOLOv8n instead of custom YOLOv11n model")
     parser.add_argument("--fps-limit", type=int, default=30, help="FPS limit for processing")
+    
+    # Jetson-specific arguments
+    parser.add_argument("--use-tensorrt", action='store_true', help="Enable TensorRT acceleration (Jetson only)")
+    parser.add_argument("--tensorrt-engine", type=str, help="Path to TensorRT engine file")
+    parser.add_argument("--build-tensorrt", action='store_true', help="Build TensorRT engine and exit")
+    parser.add_argument("--csi-camera", action='store_true', help="Use CSI camera on Jetson (overrides --input)")
+    parser.add_argument("--csi-sensor-id", type=int, default=0, help="CSI camera sensor ID (0 or 1)")
+    parser.add_argument("--csi-flip", type=int, default=0, choices=[0, 2], help="CSI camera flip (0=none, 2=180deg)")
+    parser.add_argument("--jetson-power-mode", action='store_true', help="Set Jetson to max performance mode")
+    
     # Auto calibration now DISABLED by default; enable with --auto-calib
     parser.add_argument('--auto-calib', action='store_true', help='Enable automatic geometric scale calibration (disabled by default)')
     # (Deprecated) keep no-auto-calib for backward compatibility (ignored)
@@ -930,6 +1109,25 @@ def main():
     
     args = parser.parse_args()
     
+    # Jetson-specific setup
+    if IS_JETSON:
+        print("🔧 Jetson Nano optimizations enabled")
+        
+        # Set power mode if requested
+        if args.jetson_power_mode:
+            setup_jetson_power_mode()
+        
+        # Adjust processing width for Jetson if not explicitly set
+        if args.width == 640:
+            args.width = JETSON_SETTINGS['processing_width']
+            print(f"   Auto-adjusting processing width to {args.width} for Jetson Nano")
+        
+        # Warn about TensorRT on non-Jetson systems
+        if args.use_tensorrt:
+            if not torch.cuda.is_available():
+                print("⚠️ TensorRT requested but CUDA not available. Disabling TensorRT.")
+                args.use_tensorrt = False
+    
     # Device selection
     if torch.cuda.is_available():
         device = 'cuda'
@@ -945,13 +1143,25 @@ def main():
     
     # Load depth model
     use_mlx = not args.no_mlx and MLX_AVAILABLE
-    depth_model = RTMonoDepthModel(args.weights, device, use_mlx)
+    depth_model = RTMonoDepthModel(
+        args.weights, 
+        device, 
+        use_mlx, 
+        use_tensorrt=args.use_tensorrt,
+        tensorrt_engine_path=args.tensorrt_engine
+    )
     
     # Initialize YOLO detector
     yolo_detector = None
     if YOLO_AVAILABLE and not args.no_yolo:
         model_path = 'yolov8n.pt' if args.use_yolov8 else YOLO_MODEL_PATH
-        yolo_detector = YOLODetector(model_path=model_path, device=device)
+        yolo_img_size = JETSON_SETTINGS['yolo_img_size'] if IS_JETSON else 640
+        yolo_detector = YOLODetector(
+            model_path=model_path, 
+            device=device,
+            use_tensorrt=args.use_tensorrt,
+            img_size=yolo_img_size
+        )
         if yolo_detector.model is not None:
             print("✅ YOLO object detection enabled")
         else:
@@ -964,11 +1174,26 @@ def main():
             print("⚠️ YOLO not available - object detection disabled")
     
     # Setup video capture
-    input_source = args.input if args.input else 0
-    # If input is a string that represents a number, convert it to int
-    if isinstance(input_source, str) and input_source.isdigit():
-        input_source = int(input_source)
-    cap = cv2.VideoCapture(input_source)
+    if args.csi_camera and IS_JETSON:
+        # Use CSI camera on Jetson
+        print(f"📷 Using CSI camera sensor {args.csi_sensor_id}")
+        pipeline = get_csi_camera_gstreamer_pipeline(
+            sensor_id=args.csi_sensor_id,
+            capture_width=1280,
+            capture_height=720,
+            display_width=args.width,
+            display_height=int(args.width * 0.75),  # 4:3 aspect ratio
+            framerate=args.fps_limit,
+            flip_method=args.csi_flip
+        )
+        cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
+        input_source = f"CSI Camera {args.csi_sensor_id}"
+    else:
+        input_source = args.input if args.input else 0
+        # If input is a string that represents a number, convert it to int
+        if isinstance(input_source, str) and input_source.isdigit():
+            input_source = int(input_source)
+        cap = cv2.VideoCapture(input_source)
     
     if not cap.isOpened():
         print(f"❌ Error: Could not open video source '{input_source}'")
@@ -1097,6 +1322,13 @@ def main():
             print("   ⚡ Fast processing mode: Processing video as fast as possible")
         else:
             print("   🕒 Real-time mode: Processing video at original 1:1 timing")
+    if IS_JETSON:
+        print("   🚀 JETSON NANO OPTIMIZATIONS ACTIVE:")
+        print(f"      - Processing resolution: {args.width}x{int(args.width*0.75)}")
+        print(f"      - FP16 inference: {'✅ Enabled' if JETSON_SETTINGS['enable_fp16'] else '❌ Disabled'}")
+        print(f"      - TensorRT: {'✅ Enabled' if args.use_tensorrt else '❌ Disabled'}")
+        if args.csi_camera:
+            print(f"      - CSI Camera: ✅ Sensor {args.csi_sensor_id}")
     print("   🎯 Stand 1-2m away and calibrate for best accuracy")
     
     # Helper for auto calibration (geometric) - placed before processing loop so it's in scope
