@@ -115,9 +115,9 @@ RT-MonoDepth (Ours) 0.127        0.115          45 ✅
 - ✅ False positive/negative analysis
 
 **Datasets to Use:**
-1. **COCO Person Subset**
-   - Standard person detection benchmark
-   - 5,000 validation images with person annotations
+1. **PPE Detection Dataset (Custom)**
+   - Construction-specific person detection
+   - Validation set with person annotations
    - Calculate mAP@0.5, mAP@0.75
 
 2. **CrowdHuman** (Optional - dense crowds)
@@ -189,8 +189,8 @@ def compute_temporal_consistency(depth_sequence):
 YOLO + Temporal Consistency Evaluation
 ======================================
 
-YOLO Person Detection (COCO Val):
-----------------------------------
+YOLO Person Detection (PPE Dataset):
+-------------------------------------
 Precision:             0.892
 Recall:                0.856
 F1-Score:              0.874
@@ -445,7 +445,7 @@ Distance Range    MAE      MRE     RMSE
 ### **Priority 3: Stage 2 - Detection & Temporal Consistency (1-2 days)**
 **Goal:** Validate YOLO integration and temporal stability
 
-- [ ] Create `evaluate_yolo_detection.py` (COCO person subset)
+- [ ] Create `evaluate_yolo_detection.py` (PPE person detection)
 - [ ] Create `evaluate_temporal_consistency.py` (NYU videos or custom)
 - [ ] Test detection metrics (mAP, precision, recall)
 - [ ] Test temporal consistency (frame-to-frame stability)
@@ -482,7 +482,7 @@ python benchmark/benchmark_fps_pipeline.py --all-models
 ✅ **YES!** Here's why:
 
 1. **Stage 1:** Uses existing datasets (NYU, KITTI) ✅
-2. **Stage 2A:** Uses COCO dataset for person detection ✅
+2. **Stage 2A:** Uses PPE dataset for person detection ✅
 3. **Stage 2B:** Uses NYU videos OR your existing test videos ✅
 4. **Stage 3:** Pure performance testing (no dataset needed) ✅
 5. **Stage 4 (Optional):** Can use synthetic data OR 10 quick measurements ✅
@@ -503,7 +503,7 @@ python benchmark/benchmark_fps_pipeline.py --all-models
 
 ## 📝 **NEXT STEPS**
 
-1. **Confirm datasets:** Which ones can you download? (NYU, KITTI, COCO)
+1. **Confirm datasets:** Which ones can you download? (NYU, KITTI, PPE)
 2. **Confirm platforms:** Which hardware do you have? (MacBook M1 only? Jetson?)
 3. **Timeline:** When is Q1 submission deadline? (Jan-Mar 2026?)
 4. **Start with Stage 3:** Easiest to implement, immediate results

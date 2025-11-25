@@ -1,0 +1,29 @@
+# Fine-tuning Dependencies
+# Install with: pip install -r finetune/requirements.txt
+
+# Core dependencies
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
+# Training utilities
+tensorboard>=2.13.0
+tqdm>=4.65.0
+
+# Image processing
+opencv-python>=4.8.0
+Pillow>=10.0.0
+
+# Data handling
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Optional: For better performance
+ninja>=1.11.0  # Faster CUDA compilation
+
+# Optional: For visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Optional: For config files
+pyyaml>=6.0

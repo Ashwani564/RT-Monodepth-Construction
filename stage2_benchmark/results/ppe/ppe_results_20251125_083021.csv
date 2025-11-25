@@ -1,0 +1,19 @@
+Metric,Value
+Model,custom_yolo11n.pt
+Dataset,PPE Detection
+Timestamp,20251125_083021
+Confidence Threshold,0.25
+IoU Threshold,0.45
+Image Size,640
+
+Overall Metrics,
+mAP50,0.8601
+mAP50-95,0.6167
+precision,0.9349
+recall,0.7472
+
+Speed Metrics,
+preprocess_ms,2.53 ms
+inference_ms,15.27 ms
+postprocess_ms,28.77 ms
+total_ms,46.57 ms
