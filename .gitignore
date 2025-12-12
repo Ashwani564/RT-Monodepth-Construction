@@ -28,14 +28,59 @@ venv.bak/
 # Logs
 *.log
 
-# Model checkpoints (if any)
+# Model checkpoints and weights
 *.ckpt
 *.model
+*.pt
+*.pth
+*.weights
+*.onnx
+*.tflite
+*.pb
+!custom_yolo11n.pt  # Keep custom trained model if needed
 
 # Temporary files
 tmp/
 temp/
 .tmp/
+
+# ========================================
+# YOLO12 Training Files (Stage 2)
+# ========================================
+
+# Dataset directories
+datasets/
+yolo12-training/merged_construction_safety/
+yolo12-training/person_dataset/
+yolo12-training/construction_equipment-dataset/
+yolo12-training/ziNpH4fs/
+
+# Compressed datasets
+*.zip
+merged_construction_safety.zip
+
+# YOLO training outputs
+yolo12-training/runs/
+runs/
+weights/
+
+# YOLO cache files
+*.cache
+labels.cache
+
+# Training logs
+yolo12-training/training.log
+yolo12-training/training_live.log
+
+# NumPy/Large data files
+*.npy
+*.npz
+
+# TensorBoard logs
+events.out.tfevents.*
+tensorboard/
+
+# ========================================
 
 # Output videos and images
 output/
@@ -43,3 +88,4 @@ outputs/
 *.mp4
 *.avi
 *.mov
+*.mkv

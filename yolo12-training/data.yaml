@@ -1,0 +1,32 @@
+# Merged Construction Safety Dataset
+# Person (class 17) + Construction Equipment (classes 0-16)
+# Total: 18 classes
+
+path: yolo12-training/merged_construction_safety  # Dataset root
+train: train/images  # Train images (relative to 'path')
+val: valid/images    # Validation images (relative to 'path')
+test: test/images    # Test images (optional)
+
+# Number of classes
+nc: 18
+
+# Class names
+names:
+  0: Dump truck
+  1: Excavator
+  2: Motor grader
+  3: Roller
+  4: Crane manipulator
+  5: Gazelle
+  6: Forklift Standart
+  7: Bucket loader Big
+  8: Mixer
+  9: Tanker
+  10: Bulldozer
+  11: Cleaning equipment
+  12: Truck
+  13: Trailer
+  14: Forklift Giraffe
+  15: Bucket loader Standart
+  16: Autocran
+  17: person
