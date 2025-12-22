@@ -1,0 +1,28 @@
+# Requirements for Jetson Nano deployment
+# Install these on your Jetson Nano
+
+# Core dependencies (use Jetson's pre-installed versions where possible)
+# PyTorch and TorchVision should be installed from NVIDIA's repos:
+# https://forums.developer.nvidia.com/t/pytorch-for-jetson/72048
+
+# OpenCV (usually pre-installed on Jetson)
+opencv-python>=4.5.0
+
+# NumPy (use Jetson's optimized version)
+numpy>=1.19.0
+
+# Pillow
+pillow>=8.0.0
+
+# Progress bar
+tqdm>=4.60.0
+
+# ONNX Runtime with GPU support for Jetson
+# Install from: https://elinux.org/Jetson_Zoo#ONNX_Runtime
+# pip3 install onnxruntime-gpu
+
+# Optional: ultralytics for YOLO (fallback if ONNX not available)
+# Note: This is heavy, prefer using ONNX model
+# ultralytics>=8.0.0
+
+# TensorRT is pre-installed on JetPack
