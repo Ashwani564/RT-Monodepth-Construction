@@ -1,0 +1,27 @@
+\documentclass{article}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{caption}
+
+\captionsetup{justification=centering}
+
+\begin{document}
+
+% Force the table counter to 1 so the next table becomes "Table 2"
+\setcounter{table}{1}
+
+\begin{table}[ht]
+    \centering
+    \caption{Cross-Dataset Evaluation (Cityscapes Validation Set)}
+    \label{tab:cityscapes_eval}
+    \begin{tabular}{lcccr}
+        \toprule
+        \textbf{Approach} & $\delta < 1.25 \uparrow$ & AbsRel $\downarrow$ & RMSE $\downarrow$ & Improvement \\
+        \midrule
+        Single Model (full\_sh) & 38.25\% & 0.3736 & 18.16m & Baseline \\
+        Weighted Ensemble + TTA & \textbf{52.65\%} & \textbf{0.2627} & \textbf{12.09m} & \textbf{+14.40\%} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\end{document}

@@ -1,0 +1,32 @@
+\documentclass{article}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{caption}
+
+\captionsetup{justification=centering}
+
+\begin{document}
+
+\begin{table}[ht]
+    \centering
+    \caption{RT-MonoDepth Performance on KITTI Eigen Split (7,514 test images).}
+    \label{tab:monodepth_performance}
+    
+    % \makebox forces the table to center on the page, even if it's slightly wider than the text width
+    \makebox[\textwidth][c]{
+        \begin{tabular}{lccccccc} % First column 'l' (left) for names, others 'c' (center) for data
+            \toprule
+            \textbf{Model Variant} & $\delta < 1.25 \uparrow$ & $\delta < 1.25^2 \uparrow$ & $\delta < 1.25^3 \uparrow$ & AbsRel $\downarrow$ & SqRel $\downarrow$ & RMSE $\downarrow$ & RMSElog $\downarrow$ \\
+            \midrule
+            full\_sh\_640\_192 & \textbf{96.09\%} & \textbf{99.1\%} & \textbf{99.8\%} & \textbf{0.0584} & \textbf{0.281} & \textbf{3.38m} & \textbf{0.089} \\
+            full\_s\_640\_192  & 95.38\% & 98.9\% & 99.7\% & 0.0606 & 0.312 & 3.73m & 0.093 \\
+            full\_m\_640\_192  & 95.38\% & 98.8\% & 99.7\% & 0.0615 & 0.298 & 3.64m & 0.092 \\
+            full\_ms\_640\_192 & 95.59\% & 98.9\% & 99.7\% & 0.0625 & 0.305 & 3.65m & 0.094 \\
+            s\_ms\_640\_192    & 93.69\% & 98.5\% & 99.5\% & 0.0749 & 0.398 & 4.29m & 0.108 \\
+            s\_m\_640\_192     & 93.53\% & 98.4\% & 99.5\% & 0.0750 & 0.385 & 4.16m & 0.107 \\
+            \bottomrule
+        \end{tabular}
+    }
+\end{table}
+
+\end{document}
