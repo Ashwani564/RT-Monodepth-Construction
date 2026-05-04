@@ -10,7 +10,7 @@
 \geometry{a4paper, margin=1in}
 
 % Natbib for APA style citations (Author, Year)
-\usepackage[authoryear,round]{natbib}
+\usepackage{cite}
 
 \title{AI-Enabled Vision-Based Proximity Monitoring for Construction Safety             }
 \author{}
@@ -27,13 +27,13 @@ This study demonstrates how AI-enabled vision systems can enhance construction s
 \textbf{Keywords:} AI-Enabled Safety Monitoring, Monocular Depth Estimation, Computer Vision, Construction Safety, YOLOv11, Real-Time Systems, Proximity Detection, Decision Support Systems, Large Language Models, LLM-as-Supervisor.
 
 \section{Introduction}
-The construction industry is one of the most dangerous sectors worldwide, with "struck-by-equipment" incidents being a leading cause of fatalities \citep{pan2021}. To mitigate these risks, artificial intelligence and computer vision systems are increasingly being explored to provide proactive risk management and turn reactive safety protocols into preventative ones \citep{badhan2025, vasquez2025}. Comprehensive reviews of deep-learning deployments confirm that state-of-the-art computer vision now possesses the robustness necessary to transition from academic prototypes to continuously operational site-surveillance tools \citep{cai2025}. Two key technologies have emerged as foundational for this goal: object detection and depth estimation. Advances in object detection, particularly with models like YOLO, have enabled robust, real-time identification and segmentation of critical agents like workers and machinery on complex construction sites, including PPE enforcement in occluded environments \citep{he2024, zhang2024helmets, ge2025, pan2021}. Concurrently, monocular depth estimation (MDE) has matured into a cost-effective alternative to expensive hardware like LiDAR, with modern lightweight networks achieving real-time performance on embedded systems \citep{feng2024, masoumian2022, cheng2025, ma2026}. Cross-domain insights from autonomous driving research further enrich this landscape, providing proven depth estimation algorithms directly applicable to preventing struck-by incidents on active sites \citep{huang2025}. These models can generate dense depth maps from a single, inexpensive camera, providing crucial spatial information about a scene.
+The construction industry is one of the most dangerous sectors worldwide, with "struck-by-equipment" incidents being a leading cause of fatalities \cite{pan2021}. To mitigate these risks, artificial intelligence and computer vision systems are increasingly being explored to provide proactive risk management and turn reactive safety protocols into preventative ones \cite{badhan2025, vasquez2025}. Comprehensive reviews of deep-learning deployments confirm that state-of-the-art computer vision now possesses the robustness necessary to transition from academic prototypes to continuously operational site-surveillance tools \cite{cai2025}. Two key technologies have emerged as foundational for this goal: object detection and depth estimation. Advances in object detection, particularly with models like YOLO, have enabled robust, real-time identification and segmentation of critical agents like workers and machinery on complex construction sites, including PPE enforcement in occluded environments \cite{he2024, zhang2024helmets, ge2025, pan2021}. Concurrently, monocular depth estimation (MDE) has matured into a cost-effective alternative to expensive hardware like LiDAR, with modern lightweight networks achieving real-time performance on embedded systems \cite{feng2024, masoumian2022, cheng2025, ma2026}. Cross-domain insights from autonomous driving research further enrich this landscape, providing proven depth estimation algorithms directly applicable to preventing struck-by incidents on active sites \cite{huang2025}. These models can generate dense depth maps from a single, inexpensive camera, providing crucial spatial information about a scene.
 
-Despite these parallel advancements, a critical gap remains between the capabilities of individual models and the needs of a practical, deployable safety system. Object detection answers what an object is but provides no spatial depth. MDE, conversely, provides spatial data but lacks semantic understanding and is fundamentally limited by an inherent scale ambiguity—its output is a relative depth map without real-world units, rendering it unusable for metric distance measurement \citep{zhang2025, shen2023}. This ambiguity has been a primary barrier preventing the widespread adoption of MDE for safety-critical applications.
+Despite these parallel advancements, a critical gap remains between the capabilities of individual models and the needs of a practical, deployable safety system. Object detection answers what an object is but provides no spatial depth. MDE, conversely, provides spatial data but lacks semantic understanding and is fundamentally limited by an inherent scale ambiguity—its output is a relative depth map without real-world units, rendering it unusable for metric distance measurement \cite{zhang2025, shen2023}. This ambiguity has been a primary barrier preventing the widespread adoption of MDE for safety-critical applications.
 
-While the potential of fusing these two technologies has been explored, for example by \citet{yu2021} in their YOLO MDE framework, the challenge of resolving scale ambiguity in a practical, on-the-fly manner persists. Many approaches still fall short of providing a truly deployable solution that can operate with uncalibrated, monocular cameras in dynamic environments. This paper bridges this gap by introducing a unified framework that synergistically integrates state-of-the-art object detection (YOLOv11) and MDE (RT-MonoDepth) into a single, end-to-end system. Our primary contribution is a novel automatic geometric calibration method that resolves scale ambiguity by using detected personnel as an anthropometric reference, enabling the system to produce precise, object-specific distance measurements in meters from a single uncalibrated camera. By running these models concurrently in a multi-threaded pipeline, our system transforms standard 2D video into an actionable source of 3D spatial intelligence, creating a deployable safety tool that can proactively identify and log proximity hazards in real-time on construction sites.
+While the potential of fusing these two technologies has been explored, for example in the YOLO MDE framework \cite{yu2021}, the challenge of resolving scale ambiguity in a practical, on-the-fly manner persists. Many approaches still fall short of providing a truly deployable solution that can operate with uncalibrated, monocular cameras in dynamic environments. This paper bridges this gap by introducing a unified framework that synergistically integrates state-of-the-art object detection (YOLOv11) and MDE (RT-MonoDepth) into a single, end-to-end system. Our primary contribution is a novel automatic geometric calibration method that resolves scale ambiguity by using detected personnel as an anthropometric reference, enabling the system to produce precise, object-specific distance measurements in meters from a single uncalibrated camera. By running these models concurrently in a multi-threaded pipeline, our system transforms standard 2D video into an actionable source of 3D spatial intelligence, creating a deployable safety tool that can proactively identify and log proximity hazards in real-time on construction sites.
 
-A second contribution---and a direct response to the validation requirements of safety-critical AI---is an \emph{LLM-as-supervisor} evaluation protocol. Rather than restricting validation to numerical accuracy on benchmarks, we treat the system's persistent CSV logs as the ground truth and use a locally hosted Llama~3.1 8B model \citep{dubey2024llama,ollama2024} to answer thirty automatically graded questions spanning detection counts, depth and confidence aggregates, row-level lookups, threshold-based proximity reasoning, and supervisory safety decisions. This protocol is motivated by recent work demonstrating both the promise and the limits of vision-language models for hazard identification \citep{adil2025}, RAG-grounded frameworks for automated safety inspection \citep{wang2025}, and comparative analyses of retrieval-augmented versus fine-tuned LLMs for construction knowledge queries \citep{lee2024}. Structured prompting strategies informed by AEC-domain prompt engineering research \citep{samsami2024} further shape the evaluation harness design. This protocol stress-tests an increasingly common deployment pattern in which a free-form natural-language assistant is layered on top of a deterministic perception pipeline, and it produces a quantitative, reproducible answer to the question of \emph{when an LLM may, and may not, be trusted to summarize safety telemetry}.
+A second contribution---and a direct response to the validation requirements of safety-critical AI---is an \emph{LLM-as-supervisor} evaluation protocol. Rather than restricting validation to numerical accuracy on benchmarks, we treat the system's persistent CSV logs as the ground truth and use a locally hosted Llama~3.1 8B model \cite{dubey2024llama,ollama2024} to answer thirty automatically graded questions spanning detection counts, depth and confidence aggregates, row-level lookups, threshold-based proximity reasoning, and supervisory safety decisions. This protocol is motivated by recent work demonstrating both the promise and the limits of vision-language models for hazard identification \cite{adil2025}, RAG-grounded frameworks for automated safety inspection \cite{wang2025}, and comparative analyses of retrieval-augmented versus fine-tuned LLMs for construction knowledge queries \cite{lee2024}. Structured prompting strategies informed by AEC-domain prompt engineering research \cite{samsami2024} further shape the evaluation harness design. This protocol stress-tests an increasingly common deployment pattern in which a free-form natural-language assistant is layered on top of a deterministic perception pipeline, and it produces a quantitative, reproducible answer to the question of \emph{when an LLM may, and may not, be trusted to summarize safety telemetry}.
 
 \section{Methods}
 
@@ -47,7 +47,7 @@ The methodology is built upon the RT-MonoDepth framework, a comprehensive real-t
     \label{fig:architecture}
 \end{figure}
 
-The core architectural foundation employs the RT-MonoDepth neural network, utilizing a sophisticated ResNet encoder-decoder topology with skip connections to infer metric depth information from monocular RGB images \citep{feng2024}. The system integrates platform-specific hardware acceleration libraries, including MLX optimization for Apple Silicon architectures and CUDA acceleration for NVIDIA embedded platforms such as Jetson series processors, achieving sustained processing throughputs exceeding 30 FPS with end-to-end computational latency under 50ms.
+The core architectural foundation employs the RT-MonoDepth neural network, utilizing a sophisticated ResNet encoder-decoder topology with skip connections to infer metric depth information from monocular RGB images \cite{feng2024}. The system integrates platform-specific hardware acceleration libraries, including MLX optimization for Apple Silicon architectures and CUDA acceleration for NVIDIA embedded platforms such as Jetson series processors, achieving sustained processing throughputs exceeding 30 FPS with end-to-end computational latency under 50ms.
 
 \subsection{Multi-threaded Parallel Processing Architecture and Real-time Optimization}
 The system's real-time performance characteristics are achieved through a sophisticated parallel processing architecture (Figure \ref{fig:architecture}), orchestrated by the \texttt{realtime\_depth\_video.py} script managing data ingestion from heterogeneous input modalities including live webcam feeds, pre-recorded video sequences, and real-time streaming protocols. The architecture implements a producer-consumer threading paradigm with minimalist queue-based buffering mechanisms designed to mitigate computational latency and ensure responsive real-time operation under varying processing loads. The threading architecture utilizes dual-queue synchronization primitives implemented through Python's \texttt{threading.Queue} interface: a primary \texttt{frame\_queue} and bidirectional \texttt{result\_queue}, each configured with maximum buffer capacity of unity (\texttt{maxsize=1}). This configuration implements an intelligent automatic frame-dropping mechanism that prevents accumulation of temporal artifacts in memory buffers while facilitating lock-free concurrent execution when processing pipeline latency exceeds frame acquisition intervals. The zero-copy memory management approach minimizes data transfer overhead between processing threads. A dedicated \texttt{DepthFrameProcessor} thread, implemented as a subclass of \texttt{threading.Thread}, orchestrates concurrent execution of the primary machine learning inference engines. This specialized thread manages simultaneous RT-MonoDepth depth estimation and YOLOv11 object detection inference operations on identical input frame tensors, enabling true parallel processing without blocking the main visualization and user interface loops. The parallelized architectural design isolates distinct computational tasks including frame acquisition, ML model inference, sensor fusion processing, and output rendering, thereby preventing blocking I/O operations while maintaining fluid user interface responsiveness and system stability.
@@ -60,7 +60,7 @@ The system's real-time performance characteristics are achieved through a sophis
 \end{figure}
 
 \subsection{Monocular Depth Estimation Neural Architecture and Implementation}
-The depth estimation module implements RT-MonoDepth, a neural network architecture derived from the Monodepth2 framework with substantial architectural optimizations for high-throughput real-time inference applications \citep{feng2024}. The system incorporates dynamic model selection capabilities, automatically detecting and deploying either the full-scale DepthDecoder or computationally optimized compact DepthDecoderS model variants based on weight file path analysis and system resource availability. As illustrated in the data transformation flow (Figure \ref{fig:data_transformation}), the neural network processes raw RGB input tensors with standardized spatial dimensions of $640 \times 480 \times 3$ pixels through a comprehensive preprocessing pipeline including aspect ratio preservation, color space normalization, and tensor standardization. The architecture comprises two primary computational components integrated through residual connections. The encoder network utilizes hierarchical convolutional feature extraction layers implementing multi-scale spatial representation learning. The ResNet backbone architecture captures contextual semantic information through progressively deeper feature maps with increasing receptive field coverage. Skip connections preserve fine-grained spatial details while enabling gradient flow optimization during training phases. The decoder network implements transposed convolutional upsampling operations with bilinear interpolation to generate high-resolution disparity maps from compressed feature representations. Multi-scale output generation enables supervision at multiple resolution levels, enhancing depth estimation accuracy across varying object scales and distances. The network outputs normalized disparity values ($disp \in [0,1]$) representing inverse depth relationships. The conversion to metric depth measurements utilizes the \texttt{disp\_to\_depth} transformation function implementing the following mathematical formulation:
+The depth estimation module implements RT-MonoDepth, a neural network architecture derived from the Monodepth2 framework with substantial architectural optimizations for high-throughput real-time inference applications \cite{feng2024}. The system incorporates dynamic model selection capabilities, automatically detecting and deploying either the full-scale DepthDecoder or computationally optimized compact DepthDecoderS model variants based on weight file path analysis and system resource availability. As illustrated in the data transformation flow (Figure \ref{fig:data_transformation}), the neural network processes raw RGB input tensors with standardized spatial dimensions of $640 \times 480 \times 3$ pixels through a comprehensive preprocessing pipeline including aspect ratio preservation, color space normalization, and tensor standardization. The architecture comprises two primary computational components integrated through residual connections. The encoder network utilizes hierarchical convolutional feature extraction layers implementing multi-scale spatial representation learning. The ResNet backbone architecture captures contextual semantic information through progressively deeper feature maps with increasing receptive field coverage. Skip connections preserve fine-grained spatial details while enabling gradient flow optimization during training phases. The decoder network implements transposed convolutional upsampling operations with bilinear interpolation to generate high-resolution disparity maps from compressed feature representations. Multi-scale output generation enables supervision at multiple resolution levels, enhancing depth estimation accuracy across varying object scales and distances. The network outputs normalized disparity values ($disp \in [0,1]$) representing inverse depth relationships. The conversion to metric depth measurements utilizes the \texttt{disp\_to\_depth} transformation function implementing the following mathematical formulation:
 
 \begin{equation}
 \text{min\_disp} = 1 / \text{max\_depth}
@@ -129,7 +129,7 @@ This quantitative distance measurement capability provides the foundational data
 \label{sec:llm_supervisor_method}
 A common emerging deployment pattern places a large language model (LLM) on top of a deterministic perception pipeline so that site supervisors can interrogate the system in natural language (``How many close calls happened today?'', ``Did any worker enter the danger zone of the excavator?''). For safety-critical settings this raises a fundamental validation question: \emph{which natural-language queries can a small, locally hosted LLM answer reliably from the structured logs that the perception pipeline already emits?}
 
-To answer this question without the privacy and connectivity concerns associated with cloud APIs, we couple our pipeline with the open-weight Llama~3.1 8B Instruct model served locally through Ollama \citep{dubey2024llama,ollama2024}. The protocol consists of four components, fully implemented in the companion script \texttt{llm\_supervisor\_eval.py}:
+To answer this question without the privacy and connectivity concerns associated with cloud APIs, we couple our pipeline with the open-weight Llama~3.1 8B Instruct model served locally through Ollama \cite{dubey2024llama,ollama2024}. The protocol consists of four components, fully implemented in the companion script \texttt{llm\_supervisor\_eval.py}:
 
 \begin{enumerate}
     \item \textbf{Ground-truth construction.} The two CSV logs produced by the pipeline (\texttt{depth\_log\_*.csv} and \texttt{distance\_log\_*.csv}) are treated as the system of record. For each evaluation question, a deterministic Python function computes the reference answer directly from these logs, eliminating any human labelling step and making the entire benchmark reproducible.
@@ -144,7 +144,7 @@ This design has three desirable properties. First, the benchmark is fully \emph{
 In this section, we present a comprehensive quantitative and qualitative evaluation of the proposed system. We first analyze the depth estimation performance (Stage~1), followed by the object detection training dynamics (Stage~2), the computational efficiency and practical application of the fused system on edge hardware (Stage~3), the proximity-monitoring telemetry, and finally the LLM-supervisor benchmark in which a locally hosted Llama~3.1 8B model is automatically graded against the perception pipeline's CSV logs.
 
 \subsection{Stage 1: Monocular Depth Estimation}
-The depth estimation module, based on the RT-MonoDepth architecture, was evaluated on the KITTI Vision Benchmark Suite. Adopting the standard Eigen split protocol \citep{geiger2012}, we assessed six model variants across 7,514 test images using median scaling to ensure scale consistency.
+The depth estimation module, based on the RT-MonoDepth architecture, was evaluated on the KITTI Vision Benchmark Suite. Adopting the standard Eigen split protocol \cite{geiger2012}, we assessed six model variants across 7,514 test images using median scaling to ensure scale consistency.
 
 \subsubsection{KITTI Benchmark Performance}
 Table \ref{tab:monodepth} summarizes the quantitative results. The models are denoted by their encoder backbone complexity ($s$=small, $m$=medium, full) and resolution. The \texttt{full\_sh\_640\_192} variant proved to be the most robust configuration, achieving a state-of-the-art accuracy of 96.09\% at the strict $\delta < 1.25$ threshold. It also minimized the Root Mean Squared Error (RMSE) to 3.38 meters, indicating high reliability for distance estimation in autonomous driving and safety contexts.
@@ -194,7 +194,7 @@ To assess the system's robustness to domain shifts, we conducted a zero-shot tra
 \end{table}
 
 \subsection{Stage 2: Construction Safety Object Detection}
-The second stage of our pipeline utilizes the YOLOv11n architecture \citep{jocher2024}, fine-tuned on the Construction Site Safety dataset \citep{roboflow2023} to detect 10 distinct classes, including Personal Protective Equipment (PPE) and heavy machinery.
+The second stage of our pipeline utilizes the YOLOv11n architecture \cite{jocher2024}, fine-tuned on the Construction Site Safety dataset \cite{roboflow2023} to detect 10 distinct classes, including Personal Protective Equipment (PPE) and heavy machinery.
 
 \subsubsection{Dataset and Training Configuration}
 The model was trained on 2,605 images with a $640 \times 640$ input resolution using the AdamW optimizer with an initial learning rate of 0.01 and momentum of 0.937. Representative samples are shown in Figure \ref{fig:dataset_samples}.
@@ -298,11 +298,11 @@ This monotonically degrading accuracy curve---from 80\,\% on lookups, through 40
 \section{Discussion and Limitations}
 The results presented in this study validate the core hypothesis that a synergistic fusion of real-time object detection and monocular depth estimation can create a cost-effective and powerful safety monitoring tool. Our framework successfully demonstrates the ability to move beyond generic depth maps and provide object-specific, actionable spatial data from a single 2D camera.
 
-The system's performance, achieving 96.09\% depth accuracy and 84.99\% detection mAP, highlights the robustness of the chosen architecture. Deployment tests confirmed the system's efficiency on edge devices. While the edge device represents older hardware, the achievement of 11 FPS (and 22–25 FPS on Apple Silicon) confirms suitability for real-time applications where immediate feedback is paramount for accident prevention \citep{feng2024}. This capability is a direct result of the multi-threaded, parallel processing architecture that executes the YOLOv11 and RT-MonoDepth models concurrently.
+The system's performance, achieving 96.09\% depth accuracy and 84.99\% detection mAP, highlights the robustness of the chosen architecture. Deployment tests confirmed the system's efficiency on edge devices. While the edge device represents older hardware, the achievement of 11 FPS (and 22–25 FPS on Apple Silicon) confirms suitability for real-time applications where immediate feedback is paramount for accident prevention \cite{feng2024}. This capability is a direct result of the multi-threaded, parallel processing architecture that executes the YOLOv11 and RT-MonoDepth models concurrently.
 
 However, the cross-dataset evaluation reveals a 43\% performance drop when transferring from KITTI to Cityscapes, indicating a need for unsupervised domain adaptation. Additionally, while the $320 \times 320$ resolution enables real-time performance on the edge device, it limits the detection of small, distant safety violations (e.g., a missing helmet at $>20$ meters).
 
-Furthermore, the auto-calibration mechanism is dependent on the presence of a "person" in the camera's field of view and assumes a static average height of 1.7 meters. The system's reliability could be compromised in scenarios where no personnel are visible, or when personnel height deviates significantly from the average. Future iterations could explore more robust calibration techniques, such as using multiple object classes for reference or incorporating self-supervised scale recovery methods that do not rely on specific object detection \citep{shen2023}.
+Furthermore, the auto-calibration mechanism is dependent on the presence of a "person" in the camera's field of view and assumes a static average height of 1.7 meters. The system's reliability could be compromised in scenarios where no personnel are visible, or when personnel height deviates significantly from the average. Future iterations could explore more robust calibration techniques, such as using multiple object classes for reference or incorporating self-supervised scale recovery methods that do not rely on specific object detection \cite{shen2023}.
 
 \subsection{Implications of the LLM-Supervisor Evaluation}
 \label{sec:discussion_llm}
@@ -317,96 +317,84 @@ Third, \emph{automated, ground-truth-grounded benchmarks are themselves a contri
 \section{Conclusion}
 This work presented a real-time safety perception system achieving 96.09\% depth accuracy and 84.99\% detection mAP. By optimizing the pipeline with TensorRT and FP16 precision, we demonstrated the feasibility of running complex, multi-stage AI on embedded hardware, paving the way for automated, low-cost safety monitoring on active construction sites.
 
-The key contribution of this work lies in its synergistic approach, fusing state-of-the-art perception models like YOLOv11 \citep{jocher2024} for intelligent recognition into a unified, deployable tool. The implementation of an automatic geometric calibration function proved effective for resolving scale ambiguity, enabling accurate 3D reconstruction and Euclidean distance calculations. Empirical validation through quantitative logging confirmed the system's ability to reliably detect and flag proximity breaches against predefined safety zones, presenting a viable path toward reducing the high rate of fatalities in the construction industry.
+The key contribution of this work lies in its synergistic approach, fusing state-of-the-art perception models like YOLOv11 \cite{jocher2024} for intelligent recognition into a unified, deployable tool. The implementation of an automatic geometric calibration function proved effective for resolving scale ambiguity, enabling accurate 3D reconstruction and Euclidean distance calculations. Empirical validation through quantitative logging confirmed the system's ability to reliably detect and flag proximity breaches against predefined safety zones, presenting a viable path toward reducing the high rate of fatalities in the construction industry.
 
 Beyond perception accuracy, this paper also introduces an automatically graded LLM-supervisor benchmark in which thirty ground-truth-grounded questions are answered by a locally hosted Llama~3.1 8B model. The resulting capability profile (80\,\% on lookups, 0\,\% on threshold-based proximity reasoning, 33.3\,\% overall) provides the first quantitative answer---specific to construction safety---to the question of \emph{which natural-language queries an on-device LLM can be trusted to answer from a deterministic perception pipeline}, and motivates a hybrid architecture in which the LLM verbalizes events flagged by the pipeline rather than recomputing them. The full evaluation harness is released alongside the perception code as \texttt{process\_video\_headless.py} and \texttt{llm\_supervisor\_eval.py} to enable apples-to-apples comparisons against future LLMs.
 
-% APA 7 Style Bibliography
-\begin{thebibliography}{}
+% IEEE Style Bibliography
+\begin{thebibliography}{99}
 
-\bibitem[Feng et al.(2024)]{feng2024} 
-Feng, C., et al. (2024). Real-time monocular depth estimation on embedded systems. \textit{IEEE International Conference on Multimedia and Expo (ICME)}.
+\bibitem{feng2024}
+C. Feng et al., ``Real-time monocular depth estimation on embedded systems,'' in \textit{Proc. IEEE Int. Conf. Multimedia Expo (ICME)}, 2024.
 
-\bibitem[Feng et al.(2024)]{feng_miao2024}
-Feng, R., Miao, Y., \& Zheng, J. (2024). A YOLO-Based intelligent Detection algorithm for risk Assess-Ment of construction sites. \textit{TUP Journals \& Magazine | IEEE Xplore}.
+\bibitem{geiger2012}
+A. Geiger, P. Lenz, and R. Urtasun, ``Are we ready for autonomous driving? The KITTI vision benchmark suite,'' in \textit{Proc. IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR)}, 2012, pp.~3354--3361.
 
-\bibitem[Geiger et al.(2012)]{geiger2012} 
-Geiger, A., Lenz, P., \& Urtasun, R. (2012). Are we ready for autonomous driving? The KITTI vision benchmark suite. \textit{Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)}, 3354–3361.
+\bibitem{he2024}
+L. He, Y. Zhou, L. Liu, and J. Ma, ``Research and application of YOLOv11-based object segmentation in intelligent recognition at construction sites,'' \textit{Buildings}, vol.~14, no.~12, p.~3777, 2024.
 
-\bibitem[Godard et al.(2019)]{godard2019} 
-Godard, C., Mac Aodha, O., Firman, M., \& Brostow, G. J. (2019). Digging into self-supervised monocular depth estimation. \textit{Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)}, 3828–3838.
+\bibitem{jocher2024}
+G. Jocher et al., \textit{Ultralytics YOLO11}. Ultralytics, 2024. [Online]. Available: \url{https://github.com/ultralytics/ultralytics}
 
-\bibitem[Guizilini et al.(2020)]{guizilini2020} 
-Guizilini, V., Ambrus, R., Pillai, S., Raventos, A., \& Gaidon, A. (2020). 3D packing for self-supervised monocular depth estimation. \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, 2485–2494.
+\bibitem{masoumian2022}
+A. Masoumian, H. A. Rashwan, J. Cristiano, M. S. Asif, and D. Puig, ``Monocular depth estimation using deep learning: A review,'' \textit{Sensors}, vol.~22, no.~14, p.~5353, 2022.
 
-\bibitem[He et al.(2024)]{he2024}
-He, L., Zhou, Y., Liu, L., \& Ma, J. (2024). Research and application of YOLOV11-Based object segmentation in intelligent recognition at construction sites. \textit{Buildings}, 14(12), 3777.
+\bibitem{pan2021}
+Y. Pan and L. Zhang, ``Roles of artificial intelligence in construction engineering and management: A critical review and future trends,'' \textit{Autom. Constr.}, vol.~122, p.~103517, 2021.
 
-\bibitem[Ji et al.(2021)]{ji2021}
-Ji, P., Li, R., Bhanu, B., \& Xu, Y. (2021). MonoIndoor: Towards good practice of self-supervised monocular depth estimation for indoor environments. \textit{Proceedings of the IEEE/CVF International Conference on Computer Vision}, 12787-12796.
+\bibitem{roboflow2023}
+Roboflow Universe Projects, ``Construction site safety dataset,'' Roboflow, 2023. [Online]. Available: \url{https://universe.roboflow.com/roboflow-universe-projects/construction-site-safety}
 
-\bibitem[Jocher et al.(2024)]{jocher2024} 
-Jocher, G., et al. (2024). \textit{Ultralytics YOLO11}. Ultralytics.
+\bibitem{shen2023}
+J. Shen, W. Yan, S. Qin, and X. Zheng, ``A self-supervised monocular depth estimation model with scale recovery and transfer learning for construction scene analysis,'' \textit{Comput.-Aided Civ. Infrastruct. Eng.}, vol.~38, no.~9, pp.~1142--1161, 2023.
 
-\bibitem[Masoumian et al.(2022)]{masoumian2022}
-Masoumian, A., Rashwan, H. A., Cristiano, J., Asif, M. S., \& Puig, D. (2022). Monocular Depth Estimation Using Deep Learning: A Review. \textit{Sensors}, 22(14), 5353.
+\bibitem{yu2021}
+J. Yu and H. Choi, ``YOLO MDE: Object detection with monocular depth estimation,'' \textit{Electronics}, vol.~11, no.~1, p.~76, 2021.
 
-\bibitem[Pan \& Zhang(2021)]{pan2021}
-Pan, Y., \& Zhang, L. (2021). Roles of artificial intelligence in construction engineering and management: A critical review and future trends. \textit{Automation in Construction}, 122, 103517.
+\bibitem{zhang2025}
+Z. Zhang, Y. Zhang, Y. Li, and L. Wu, ``Review of monocular depth estimation methods,'' \textit{J. Electron. Imag.}, vol.~34, no.~2, p.~020901, 2025.
 
-\bibitem[Roboflow Universe Projects(2023)]{roboflow2023} 
-Roboflow Universe Projects. (2023). \textit{Construction site safety dataset} [Data set]. Roboflow. \url{https://universe.roboflow.com/roboflow-universe-projects/construction-site-safety}
+\bibitem{dubey2024llama}
+A. Dubey, A. Jauhri, A. Pandey et al., ``The Llama 3 herd of models,'' \textit{arXiv preprint} arXiv:2407.21783, 2024.
 
-\bibitem[Shen et al.(2023)]{shen2023}
-Shen, J., Yan, W., Qin, S., \& Zheng, X. (2023). A self-supervised monocular depth estimation model with scale recovery and transfer learning for construction scene analysis. \textit{Computer-Aided Civil and Infrastructure Engineering}, 38(9), 1142–1161.
+\bibitem{ollama2024}
+Ollama, ``Ollama: Get up and running with large language models locally,'' 2024. [Online]. Available: \url{https://ollama.com}
 
-\bibitem[Yu \& Choi(2021)]{yu2021}
-Yu, J., \& Choi, H. (2021). YOLO MDE: Object Detection with Monocular Depth Estimation. \textit{Electronics}, 11(1), 76.
+\bibitem{adil2025}
+M. Adil, G. Lee, V. A. Gonz\'{a}lez, and Q. Mei, ``Using vision language models for safety hazard identification in construction,'' \textit{arXiv preprint} arXiv:2504.09083, 2025.
 
-\bibitem[Zhang et al.(2025)]{zhang2025}
-Zhang, Z., Zhang, Y., Li, Y., \& Wu, L. (2025). Review of monocular depth estimation methods. \textit{Journal of Electronic Imaging}, 34(2), 020901.
+\bibitem{badhan2025}
+S. J. Badhan and R. Samsami, ``Artificial intelligence (AI) in construction safety: A systematic literature review,'' \textit{Buildings}, vol.~15, no.~22, p.~4084, 2025.
 
-\bibitem[Dubey et al.(2024)]{dubey2024llama}
-Dubey, A., Jauhri, A., Pandey, A., et al. (2024). The Llama 3 herd of models. \textit{arXiv preprint} arXiv:2407.21783.
+\bibitem{cai2025}
+R. Cai, J. Li, Y. Tan, J. Tang, and X. Chen, ``Convolutional neural networks for construction safety: A technical review of computer vision applications,'' \textit{Appl. Soft Comput.}, vol.~180, p.~113374, 2025.
 
-\bibitem[Ollama(2024)]{ollama2024}
-Ollama. (2024). \textit{Ollama: Get up and running with large language models locally} [Computer software]. \url{https://ollama.com}
+\bibitem{cheng2025}
+Z. Cheng, T. Liu, T. Lei, X. Hua, Y. Zhang, and C. Tang, ``RTS-Mono: A real-time self-supervised monocular depth estimation method for real-world deployment,'' \textit{arXiv preprint} arXiv:2511.14107, 2025.
 
-\bibitem[Adil et al.(2025)]{adil2025}
-Adil, M., Lee, G., Gonz\'{a}lez, V. A., \& Mei, Q. (2025). Using vision language models for safety hazard identification in construction. \textit{arXiv preprint} arXiv:2504.09083.
+\bibitem{ge2025}
+T. Ge, B. Ning, and Y. Xie, ``YOLO-AFR: An improved YOLOv12-based model for accurate and real-time dangerous driving behavior detection,'' \textit{Appl. Sci.}, vol.~15, no.~11, p.~6090, 2025.
 
-\bibitem[Badhan \& Samsami(2025)]{badhan2025}
-Badhan, S. J., \& Samsami, R. (2025). Artificial intelligence (AI) in construction safety: A systematic literature review. \textit{Buildings}, \textit{15}(22), 4084.
+\bibitem{huang2025}
+Z. Huang, M. A. H. Ali, Y. Nukman, H. L. Xu, S. Zhang, H. Chen, and M. Alkhedher, ``A systematic review of monocular depth estimation for autonomous driving: Methods and dataset benchmarking,'' \textit{Results Eng.}, vol.~26, p.~105359, 2025.
 
-\bibitem[Cai et al.(2025)]{cai2025}
-Cai, R., Li, J., Tan, Y., Tang, J., \& Chen, X. (2025). Convolutional neural networks for construction safety: A technical review of computer vision applications. \textit{Applied Soft Computing}, \textit{180}, 113374.
+\bibitem{lee2024}
+J. Lee, S. Ahn, D. Kim, and D. Kim, ``Performance comparison of retrieval-augmented generation and fine-tuned large language models for construction safety management knowledge retrieval,'' \textit{Autom. Constr.}, vol.~168, p.~105846, 2024.
 
-\bibitem[Cheng et al.(2025)]{cheng2025}
-Cheng, Z., Liu, T., Lei, T., Hua, X., Zhang, Y., \& Tang, C. (2025). RTS-Mono: A real-time self-supervised monocular depth estimation method for real-world deployment. \textit{arXiv preprint} arXiv:2511.14107.
+\bibitem{ma2026}
+L. Ma, Y. Li, B. Jiang, Z. Zhong, H. Ding, and L. Zhu, ``AsyncMDE: Real-time monocular depth estimation via asynchronous spatial memory,'' \textit{arXiv preprint} arXiv:2603.10438, 2026.
 
-\bibitem[Ge et al.(2025)]{ge2025}
-Ge, T., Ning, B., \& Xie, Y. (2025). YOLO-AFR: An improved YOLOv12-based model for accurate and real-time dangerous driving behavior detection. \textit{Applied Sciences}, \textit{15}(11), 6090. \url{https://doi.org/10.3390/app15116090}
+\bibitem{samsami2024}
+R. Samsami, ``Optimizing the utilization of generative artificial intelligence (AI) in the AEC industry: ChatGPT prompt engineering and design,'' \textit{CivilEng}, vol.~5, no.~4, pp.~971--1010, 2024.
 
-\bibitem[Huang et al.(2025)]{huang2025}
-Huang, Z., Ali, M. A. H., Nukman, Y., Xu, H. L., Zhang, S., Chen, H., \& Alkhedher, M. (2025). A systematic review of monocular depth estimation for autonomous driving: Methods and dataset benchmarking. \textit{Results in Engineering}, \textit{26}, 105359. \url{https://doi.org/10.1016/j.rineng.2025.105359}
+\bibitem{vasquez2025}
+E. Vasquez, M. Hale, and S. Chen, ``Computer vision applications for real-time safety monitoring on construction sites,'' ResearchGate, 2025.
 
-\bibitem[Lee et al.(2024)]{lee2024}
-Lee, J., Ahn, S., Kim, D., \& Kim, D. (2024). Performance comparison of retrieval-augmented generation and fine-tuned large language models for construction safety management knowledge retrieval. \textit{Automation in Construction}, \textit{168}, 105846.
+\bibitem{wang2025}
+C. Wang et al., ``Automating construction safety inspections using a multi-modal vision-language RAG framework,'' \textit{arXiv preprint} arXiv:2510.04145, 2025.
 
-\bibitem[Ma et al.(2026)]{ma2026}
-Ma, L., Li, Y., Jiang, B., Zhong, Z., Ding, H., \& Zhu, L. (2026). AsyncMDE: Real-time monocular depth estimation via asynchronous spatial memory. \textit{arXiv preprint} arXiv:2603.10438.
-
-\bibitem[Samsami(2024)]{samsami2024}
-Samsami, R. (2024). Optimizing the utilization of generative artificial intelligence (AI) in the AEC industry: ChatGPT prompt engineering and design. \textit{CivilEng}, \textit{5}(4), 971--1010.
-
-\bibitem[Vasquez et al.(2025)]{vasquez2025}
-Vasquez, E., Hale, M., \& Chen, S. (2025). \textit{Computer vision applications for real-time safety monitoring on construction sites}. ResearchGate.
-
-\bibitem[Wang et al.(2025)]{wang2025}
-Wang, C., et al. (2025). Automating construction safety inspections using a multi-modal vision-language RAG framework. \textit{arXiv preprint} arXiv:2510.04145.
-
-\bibitem[Zhang et al.(2024)]{zhang2024helmets}
-Zhang, L., Sun, Z., Tao, H., Liu, Y., Guo, X., \& Chen, J. (2024). Research on mine-personnel helmet detection based on multi-strategy-improved YOLOv11. \textit{Sensors}, \textit{25}(1), 170.
+\bibitem{zhang2024helmets}
+L. Zhang, Z. Sun, H. Tao, Y. Liu, X. Guo, and J. Chen, ``Research on mine-personnel helmet detection based on multi-strategy-improved YOLOv11,'' \textit{Sensors}, vol.~25, no.~1, p.~170, 2024.
 
 \end{thebibliography}
 
