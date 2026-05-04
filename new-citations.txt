@@ -1,0 +1,185 @@
+15 Additional Citations for "AI-Enabled Vision-Based Proximity Monitoring for Construction Safety"
+APA 7th Edition | Grouped by Thematic Cluster
+================================================================================
+
+CLUSTER 1: Advancements in YOLO Architectures and Edge Computer Vision
+------------------------------------------------------------------------
+
+[1] YOLOv11-Based Segmentation for Cluttered Environments
+He, L., Zhou, Y., Liu, L., & Ma, J. (2024). Research and application of YOLOv11-based object
+segmentation in intelligent recognition at construction sites. Buildings, 14(12), 3777.
+https://doi.org/10.3390/buildings14123777
+Paragraph: To address the intricate spatial relationships on highly cluttered construction sites,
+recent object detection research has pivoted toward advanced segmentation capabilities. He et al.
+(2024) demonstrated the utility of YOLOv11-based object segmentation algorithms for intelligent
+recognition tasks on active sites. By accurately masking the complex outlines of heavy machinery
+and personnel rather than relying solely on coarse bounding boxes, this architecture significantly
+minimizes background noise and improves hazard identification accuracy in chaotic construction
+environments.
+
+[2] YOLOv12 for Tracking Dangerous Driving Behaviors
+Ge, T., Ning, B., & Xie, Y. (2025). YOLO-AFR: An improved YOLOv12-based model for accurate and
+real-time dangerous driving behavior detection. Applied Sciences, 15(11), 6090.
+https://doi.org/10.3390/app15116090
+Paragraph: The continuous progression of YOLO architectures offers critical enhancements for
+tracking dynamic heavy equipment operations. Ge et al. (2025) proposed YOLO-AFR, an optimized
+YOLOv12-based model designed specifically for real-time dangerous driving behavior detection. In
+the context of heavy machinery operators, actively tracking behaviors such as distraction, fatigue,
+or single-handed driving provides a preventative layer to safety management, intercepting
+human-factor risks before they manifest into severe struck-by or collision incidents.
+
+[3] State-of-the-Art CNN Deployments in Construction
+Cai, R., Li, J., Tan, Y., Tang, J., & Chen, X. (2025). Convolutional neural networks for
+construction safety: A technical review of computer vision applications. Applied Soft Computing,
+180, 113374.
+Paragraph: The foundational role of deep learning in modern safety frameworks is undisputed, but
+the field requires continual synthesis to benchmark new capabilities. In their comprehensive
+technical review, Cai et al. (2025) mapped the latest convolutional neural network (CNN)
+applications deployed specifically for construction safety monitoring. The review confirms that
+state-of-the-art computer vision systems now possess the robustness necessary to transition from
+academic prototypes to ubiquitous, continuously operational site-surveillance tools capable of
+mitigating real-time hazards.
+
+[4] Optimized Helmet Detection in Occluded Environments
+Zhang, L., Sun, Z., Tao, H., Liu, Y., Guo, X., & Chen, J. (2024). Research on mine-personnel
+helmet detection based on multi-strategy-improved YOLOv11. Sensors, 25(1), 170.
+Paragraph: Ensuring proper personal protective equipment (PPE) compliance in harsh environments
+with extreme lighting variability — such as tunneling or night-shift construction — poses a
+significant algorithmic challenge. Zhang et al. (2024) developed a multi-strategy improved
+YOLOv11 model specifically tuned for helmet detection in dark and occluded environments. Their
+findings illustrate how targeted architectural optimizations, including advanced attention
+mechanisms and enhanced feature extraction, can overcome severe environmental constraints to
+maintain high precision in PPE enforcement.
+
+[5] Real-World Efficacy of CV Safety Applications
+Vasquez, E., Hale, M., & Chen, S. (2025). Computer vision applications for real-time safety
+monitoring on construction sites. ResearchGate.
+Paragraph: The integration of computer vision extends beyond simple object detection into the
+continuous enforcement of occupational health standards. Vasquez et al. (2025) analyzed
+field-deployed computer vision applications designed to flag unsafe conditions and proactively
+prevent accidents. By documenting real-world implementations, this work underscores how automated
+visual analytics transition safety protocols from a reactive, retrospective posture into a
+continuous, real-time preventative operation, offering immediate alerting capabilities to site
+managers.
+
+
+CLUSTER 2: Progress in Monocular Depth Estimation (MDE)
+---------------------------------------------------------
+
+[6] Resolving Scale Ambiguity for Construction Topographies
+Shen, J., Yan, W., Qin, S., & Zheng, X. (2023). A self-supervised monocular depth estimation
+model with scale recovery and transfer learning for construction scene analysis. Computer-Aided
+Civil and Infrastructure Engineering, 38(9), 1142-1161.
+Paragraph: Translating 2D pixel detections into actionable 3D proximity alerts requires bridging
+the gap between relative depth and absolute real-world metric distance. Shen et al. (2023) tackled
+this by proposing a self-supervised monocular depth estimation model specifically calibrated for
+construction scene analysis. By integrating scale recovery mechanisms and transfer learning, their
+framework provides the critical metric distances needed to trigger safety alarms when workers
+encroach upon the operational radius of heavy machinery, achieving this spatial awareness using
+only a single standard camera.
+
+[7] Systematizing the Transition to MDE
+Zhang, Z., Zhang, Y., Li, Y., & Wu, L. (2025). Review of monocular depth estimation methods.
+Journal of Electronic Imaging, 34(2), 020901.
+https://doi.org/10.1117/1.JEI.34.2.020901
+Paragraph: The methodological shift from stereo vision to monocular perception relies heavily on
+recent advancements in neural network architectures. Zhang et al. (2025) provide an exhaustive
+review categorizing the evolution of monocular depth estimation methods from early geometry-based
+techniques to contemporary deep learning pipelines. Their synthesis clarifies how modern
+data-driven approaches circumvent the need for complex, expensive sensing hardware, making
+ubiquitous 3D spatial monitoring highly feasible on resource-constrained, temporary construction
+sites.
+
+[8] Asynchronous Spatial Memory for Edge Processing
+Ma, L., Li, Y., Jiang, B., Zhong, Z., Ding, H., & Zhu, L. (2026). AsyncMDE: Real-time monocular
+depth estimation via asynchronous spatial memory. arXiv preprint arXiv:2603.10438.
+Paragraph: A major constraint in deploying highly accurate depth estimation models on construction
+sites is their intensive computational demand. Ma et al. (2026) addressed this limitation by
+introducing AsyncMDE, an innovative asynchronous depth perception system designed to amortize high
+computational costs. By utilizing a lightweight foreground model that continuously refreshes spatial
+features generated by a heavier background foundation model, AsyncMDE dramatically reduces
+parameter requirements, enabling sustained, high-frame-rate spatial perception on resource-limited
+edge processors.
+
+[9] Real-Time Deployment Constraints and RTS-Mono
+Cheng, Z., Liu, T., Lei, T., Hua, X., Zhang, Y., & Tang, C. (2025). RTS-Mono: A real-time
+self-supervised monocular depth estimation method for real-world deployment. arXiv preprint
+arXiv:2511.14107.
+Paragraph: Deploying predictive safety alerts relies heavily on maintaining high inference speeds
+on local hardware to ensure near-zero latency. Cheng et al. (2025) developed RTS-Mono, an
+ultra-lightweight self-supervised monocular depth estimation architecture optimized specifically
+for real-world deployment. With a parameter count drastically lower than traditional foundation
+models, RTS-Mono successfully preserves spatial fidelity while achieving real-time inference
+speeds of up to 49 frames per second on standard embedded edge devices, making it highly suitable
+for active site monitoring.
+
+[10] Cross-Domain Applications from Autonomous Driving
+Huang, Z., Ali, M. A. H., Nukman, Y., Xu, H. L., Zhang, S., Chen, H., & Alkhedher, M. (2025).
+A systematic review of monocular depth estimation for autonomous driving: Methods and dataset
+benchmarking. Results in Engineering, 26, 105359.
+https://doi.org/10.1016/j.rineng.2025.105359
+Paragraph: Much of the innovation propelling spatial awareness in construction originates from the
+autonomous driving sector. Huang et al. (2025) systematically reviewed monocular depth estimation
+methods tailored for autonomous vehicle navigation, benchmarking algorithmic performance across
+diverse, complex datasets. The computational techniques utilized to protect pedestrians from moving
+vehicles on public roads map directly onto the challenges of preventing struck-by incidents on
+construction sites, offering a rich source of algorithmic cross-pollination for construction safety
+engineers.
+
+
+CLUSTER 3: Large Language Models (LLMs) and Multimodal AI Integration
+----------------------------------------------------------------------
+
+[11] Vision-Language Models for Unstructured Visual Reasoning
+Adil, M., Lee, G., Gonzalez, V. A., & Mei, Q. (2025). Using vision language models for safety
+hazard identification in construction. arXiv preprint arXiv:2504.09083.
+Paragraph: While traditional computer vision identifies predefined object classes, newer multimodal
+frameworks promise a deeper semantic understanding of complex hazard scenarios. Adil et al. (2025)
+evaluated the efficacy of Vision Language Models (VLMs) applied directly to safety hazard
+identification tasks. By leveraging the immense contextual reasoning capabilities of VLMs, this
+approach transcends basic bounding box generation, allowing safety systems to interpret nuanced,
+unstructured visual data and articulate context-specific safety guidelines.
+
+[12] Grounding Visual AI with RAG Frameworks
+Wang, C., et al. (2025). Automating construction safety inspections using a multi-modal
+vision-language RAG framework. arXiv preprint arXiv:2510.04145.
+Paragraph: To address the hallucination vulnerabilities often seen in generative AI, researchers
+are increasingly grounding foundation models in strict regulatory data. Wang et al. (2025)
+introduced SiteShield, a multi-modal Retrieval-Augmented Generation (RAG) framework designed to
+automate construction safety inspection reports. By integrating visual site observations with
+retrieved text from official OSHA guidelines, this system produces highly accurate, contextually
+relevant safety assessments, significantly outperforming standard unimodal language models in
+formal compliance checks.
+
+[13] Optimizing Knowledge Retrieval Architecture
+Lee, J., Ahn, S., Kim, D., & Kim, D. (2024). Performance comparison of retrieval-augmented
+generation and fine-tuned large language models for construction safety management knowledge
+retrieval. Automation in Construction, 168, 105846.
+Paragraph: The sheer volume of regulatory codes and internal safety protocols requires intelligent
+information retrieval systems to aid site managers effectively. Lee et al. (2024) systematically
+compared the performance of Retrieval-Augmented Generation (RAG) against fine-tuned Large Language
+Models for querying construction safety management knowledge. Their findings provide a crucial
+architectural blueprint for developing reliable AI assistants, demonstrating how fetching
+deterministic regulatory text prior to generation yields far more reliable compliance guidance than
+relying on parameterized model memory.
+
+[14] Mapping the Landscape of AI in Occupational Safety
+Badhan, S. J., & Samsami, R. (2025). Artificial intelligence (AI) in construction safety: A
+systematic literature review. Buildings, 15(22), 4084.
+Paragraph: The rapid proliferation of computational tools in the built environment necessitates a
+holistic understanding of AI's current trajectory. In their systematic literature review, Badhan
+and Samsami (2025) cataloged the diverse applications of artificial intelligence within
+construction safety. Their work highlights the critical transition from passive data collection to
+proactive, AI-driven risk mitigation, while simultaneously identifying gaps in longitudinal
+deployment studies, thereby charting a clear course for future socio-technical safety research.
+
+[15] Prompt Engineering for Construction Diagnostics
+Samsami, R. (2024). Optimizing the utilization of generative artificial intelligence (AI) in the
+AEC industry: ChatGPT prompt engineering and design. CivilEng, 5(4), 971-1010.
+Paragraph: As natural language interfaces become the primary medium through which personnel
+interact with complex safety telemetry, the methodology of querying these models dictates the
+quality of the output. Samsami (2024) explored the vital role of advanced prompt engineering and
+design when deploying generative AI, such as ChatGPT, within the Architecture, Engineering, and
+Construction (AEC) industry. By establishing structured scaffolding and domain-specific prompting
+protocols, practitioners can drastically improve model reasoning reliability when parsing safety
+logs or generating operational workflows.
